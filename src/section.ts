@@ -1,4 +1,4 @@
-import math from 'mathjs';
+import * as math from 'mathjs';
 import _ from 'lodash';
 
 const m1 = math.matrix([[  1,   0,   0,   0],

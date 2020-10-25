@@ -3,73 +3,64 @@ import * as _ from 'lodash';
 import * as Rx from 'rxjs-compat';
 import * as Immutable from 'immutable';
 import './styles.css';
-import input from './input';
+import { State } from './state';
+import input, { Input } from './input';
+import { Cube } from './cube';
 import clock, { Clock } from './clock';
+import QuaternionSpline from './quaternionSpline';
 
-type CubeParams = {
-		angularVelocity: three.Vector3,
-		orientation: three.Quaternion,
+const root3over2 = 0.5 * Math.sqrt(3);
+
+function randomQuat(): three.Quaternion {
+		for (;;) {
+				const rand = [0, 1, 2, 3].map(Math.random);
+				const len2 = rand.reduce((total, num) => total + num * num, 0)
+				if (len2 > 1.0 || len2 < 0.00001) {
+						continue;
+				}
+
+				const invLen = 1.0 / Math.sqrt(len2);
+				const [x, y, z, w] = rand.map(v => v * invLen);
+				return new three.Quaternion(x, y, z, w);
+		}
 }
 
-class Cube extends Immutable.Record({angularVelocity: new three.Vector3(), orientation: new three.Quaternion() }) {
-		constructor(params?: CubeParams) {
-				params ? super(params) : super();
-		}
+function randomQuats(): three.Quaternion[] {
+		const quats = [
+				randomQuat(),
+				randomQuat(),
+				randomQuat(),
+				randomQuat(),
+		];
 
-		with(values: CubeParams) {
-				return this.merge(values) as this;
-		}
-}
-
-type StateParams = {
-		cube: Cube,
-}
-
-class State extends Immutable.Record({cube: new Cube()}) {
-		constructor(params?: StateParams) {
-				params ? super(params) : super();
-		}
-
-		with(values: StateParams) {
-				return this.merge(values) as this;
-		}
+		quats.push(quats[0]);
+		return quats;
 }
 
 const initialState = new State({
-		cube: new Cube({
-				angularVelocity: new three.Vector3(0.01, 0.03, 0.02),
-				orientation: new three.Quaternion(),
-		}),
+		cube: new Cube(randomQuats()),
+		speed: 1,
 });
 
-const events = clock.withLatestFrom(input, (clock, state) => ({ clock, state }));
-
-const cube = events.map(({clock: {delta}, state: input}: { clock: Clock, state: boolean }) => (state: State) => {
-		const cube = state.cube;
-		const { angularVelocity, orientation } = cube;
-
- 		if (input) {
-				const scale = 0.01;
-				const impulse = new three.Vector3(
-						(Math.random() - 0.5) * scale,
-						(Math.random() - 0.5) * scale,
-						(Math.random() - 0.5) * scale
-				);
-				angularVelocity.add(impulse);
-		}
-
-		const dq = new three.Quaternion(delta * angularVelocity.x, delta * angularVelocity.y, delta * angularVelocity.z, 1)
-		dq.normalize();
-		const newOrientation = new three.Quaternion().multiplyQuaternions(orientation, dq);
-		const friction = 0.99;
-		const newAngVel = new three.Vector3(friction * angularVelocity.x, friction * angularVelocity.y, friction * angularVelocity.z);
-
-		return state.with({
-				cube: cube.with({angularVelocity: newAngVel, orientation: newOrientation})
-		});
-});
+const events = clock.withLatestFrom(input);
 
 type Reducer = (state: State) => State;
+
+const cube = events.map(([{ delta }, speed]: [Clock, number]) => (state: State) => {
+		const cube = state.cube;
+		const { time, spline: { end } } = cube;
+		let newTime = time + delta * speed;
+		while (newTime > end) {
+				newTime -= end;
+		}
+
+		return state.with({
+				cube: cube.with({
+						time: newTime,
+				}),
+				speed,
+		});
+});
 
 const state = Rx.Observable
 		.merge(cube)
@@ -105,8 +96,8 @@ function setup() {
 		});
     renderer.setSize( canvas.width, canvas.height );
 
-		return (state: State) => {
-				mesh.quaternion.copy(state.cube.orientation);
+		return ({ cube: { spline, time } }: State) => {
+				mesh.quaternion.copy(spline.evalAt(time));
 				renderer.render(scene, camera);
 		};
 }

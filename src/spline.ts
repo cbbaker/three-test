@@ -1,4 +1,4 @@
-import math from 'mathjs';
+import * as math from 'mathjs';
 import _ from 'lodash';
 import Polynomial from './polynomial';
 import Section from './section';
@@ -20,16 +20,44 @@ type Metric<T> = (lhs: T, rhs: T) => number;
 export default class Spline {
 		points: number[][];
 		metric: Metric<number[]>;
-		sections: Section<number[]>[];
+		polynomials: Polynomial[][];
 		
 		constructor(points: number[][], metric: Metric<number[]>) {
 				this.points = points;
 				this.metric = metric;
-				this.sections = this.computeSections(this.points, this.metric);
+				if (points.length > 1) {
+						this.polynomials = this.computePolynomials(points, metric);
+						this.polynomials.forEach(coordPolys => {
+								coordPolys.forEach(poly => {
+										const speed = poly.derivative();
+										const accel = speed.derivative();
+								})
+						});
+				}
+
 		}
 
-		computeSections(points: number[][], metric: Metric<number[]>): Section<number[]>[] {
-				const transposed = this.computePolynomials(points, metric).map(coord => {
+		evalAt(t: number): number[] {
+				return this.polynomials.map(polys => {
+						let curT = t;
+						for (const poly of polys) {
+								if (curT < poly.knot) {
+										return poly.evalAt(curT);
+								}
+								curT -= poly.knot;
+						}
+						const last = polys[polys.length - 1];
+						return last.evalAt(last.knot);
+				})
+		}
+
+		get end(): number {
+				const firstCoord = this.polynomials[0];
+				return firstCoord.reduce((total, poly) => total + poly.knot, 0);
+		}
+
+		get sections(): Section<number[]>[] {
+				const transposed = this.polynomials.map(coord => {
 						return coord.map(poly => poly.toControlPoints());
 				});
 
@@ -64,7 +92,7 @@ export default class Spline {
 				return coords.map(coord => this.coefficientHelper(coefficientMatrix, knots, coord));
 		}
 
-		createMatrix(knots: number[]): number[][] {
+		createMatrix(knots: number[]): math.Matrix {
 				const ptCount = knots.length;
 				const dim = ptCount * 3;
 				var result = math.zeros(dim, dim, 'sparse');
@@ -78,10 +106,10 @@ export default class Spline {
 						result = math.subset(result, math.index(r1, r2), mat2);
 				}
 
-				return result as number[][];
+				return result as math.Matrix;
 		}
 
-		coefficientHelper(matrix: number[][], knots: number[], values: number[]): Polynomial[] {
+		coefficientHelper(matrix: math.Matrix, knots: number[], values: number[]): Polynomial[] {
 				const splineCount = values.length - 1;
 				const deltaVs = this.deltas(values);
 				const coefficients = math.multiply(matrix, math.transpose(deltaVs));
