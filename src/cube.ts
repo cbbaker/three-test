@@ -2,6 +2,8 @@ import * as Rx from 'rxjs-compat';
 import * as three from 'three';
 import * as Immutable from 'immutable';
 import QuaternionSpline from './quaternionSpline';
+import { Input } from './input';
+import { Clock } from './clock';
 
 type CubeParams = {
 		spline?: QuaternionSpline;
@@ -19,6 +21,16 @@ export class Cube extends Immutable.Record({
 
 		with(values: CubeParams) {
 				return this.merge(values) as this;
+		}
+
+		process({ delta }: Clock, { speed }: Input) {
+				const { time, spline: { end } } = this;
+				let newTime = time + delta * speed;
+				while (newTime > end) {
+						newTime -= end;
+				}
+
+				return this.with({ time: newTime });
 		}
 }
 

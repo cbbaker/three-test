@@ -45,19 +45,9 @@ const events = clock.withLatestFrom(input);
 
 type Reducer = (state: State) => State;
 
-const cube = events.map(([{ delta }, { speed }]: [Clock, Input]) => (state: State) => {
-		const cube = state.cube;
-		const { time, spline: { end } } = cube;
-		let newTime = time + delta * speed;
-		while (newTime > end) {
-				newTime -= end;
-		}
-
-		return state.with({
-				cube: cube.with({
-						time: newTime,
-				}),
-		});
+const cube = events.map(([clock, input]: [Clock, Input]) => (state: State) => {
+		const cube = state.cube.process(clock, input);
+		return state.with({ cube });
 });
 
 const state = Rx.Observable
