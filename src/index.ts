@@ -39,14 +39,13 @@ function randomQuats(): three.Quaternion[] {
 
 const initialState = new State({
 		cube: new Cube(randomQuats()),
-		speed: 1,
 });
 
 const events = clock.withLatestFrom(input);
 
 type Reducer = (state: State) => State;
 
-const cube = events.map(([{ delta }, speed]: [Clock, number]) => (state: State) => {
+const cube = events.map(([{ delta }, { speed }]: [Clock, Input]) => (state: State) => {
 		const cube = state.cube;
 		const { time, spline: { end } } = cube;
 		let newTime = time + delta * speed;
@@ -58,7 +57,6 @@ const cube = events.map(([{ delta }, speed]: [Clock, number]) => (state: State) 
 				cube: cube.with({
 						time: newTime,
 				}),
-				speed,
 		});
 });
 
