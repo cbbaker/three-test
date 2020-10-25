@@ -32,5 +32,12 @@ export class Cube extends Immutable.Record({
 
 				return this.with({ time: newTime });
 		}
+
+		static object3D(): three.Object3D {
+				const geometry = new three.BoxGeometry( 0.2, 0.2, 0.2 );
+				const material = new three.MeshNormalMaterial();
+
+				return new three.Mesh( geometry, material );
+		}
 }
 

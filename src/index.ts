@@ -72,10 +72,7 @@ function setup() {
 		
     const scene = new three.Scene();
 		
-    const geometry = new three.BoxGeometry( 0.2, 0.2, 0.2 );
-    const material = new three.MeshNormalMaterial();
-		
-    const mesh = new three.Mesh( geometry, material );
+		const mesh = Cube.object3D();
     scene.add( mesh );
 		
     const renderer = new three.WebGLRenderer({
