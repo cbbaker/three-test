@@ -5,7 +5,7 @@ import * as Immutable from 'immutable';
 import './styles.css';
 import { State } from './state';
 import input, { Input } from './input';
-import { Cube } from './cube';
+import { Dodecahedron } from './dodecahedron';
 import clock, { Clock } from './clock';
 import QuaternionSpline from './quaternionSpline';
 
@@ -37,21 +37,30 @@ function randomQuats(): three.Quaternion[] {
 		return quats;
 }
 
+const root2over2 = 0.5 * Math.sqrt(2);
+
 const initialState = new State({
-		cube: new Cube(randomQuats()),
+		dodecahedron: new Dodecahedron(randomQuats()),
+		// dodecahedron: new Dodecahedron([
+		// 		new three.Quaternion(0, 1, 0, 0), 
+		// 		new three.Quaternion(0, 0, 0, 1),
+		// 		new three.Quaternion(0, -1, 0, 0),
+		// 		new three.Quaternion(0, 0, 0, 1),
+		// 		new three.Quaternion(0, 1, 0, 0), 
+		// ]),
 });
 
 const events = clock.withLatestFrom(input);
 
 type Reducer = (state: State) => State;
 
-const cube = events.map(([clock, input]: [Clock, Input]) => (state: State) => {
-		const cube = state.cube.process(clock, input);
-		return state.with({ cube });
+const dodecahedron = events.map(([clock, input]: [Clock, Input]) => (state: State) => {
+		const dodecahedron = state.dodecahedron.process(clock, input);
+		return state.with({ dodecahedron });
 });
 
 const state = Rx.Observable
-		.merge(cube)
+		.merge(dodecahedron)
 		.startWith(initialState)
 		.scan((state: State, reducer: Reducer) => reducer(state));
 
@@ -67,12 +76,12 @@ function setup() {
 		canvas.height = 480;
 		canvas.style.width = '640px';
 		canvas.style.height = '480px';
-     const camera = new three.PerspectiveCamera( 70, canvas.width / canvas.height, 0.01, 10 ); 
-    camera.position.z = 1;
+    const camera = new three.PerspectiveCamera( 70, canvas.width / canvas.height, 0.01, 10 ); 
+    camera.position.z = 8;
 		
     const scene = new three.Scene();
 		
-		const mesh = Cube.object3D();
+		const mesh = Dodecahedron.object3D();
     scene.add( mesh );
 		
     const renderer = new three.WebGLRenderer({
@@ -81,7 +90,7 @@ function setup() {
 		});
     renderer.setSize( canvas.width, canvas.height );
 
-		return ({ cube: { spline, time } }: State) => {
+		return ({ dodecahedron: { spline, time } }: State) => {
 				mesh.quaternion.copy(spline.evalAt(time));
 				renderer.render(scene, camera);
 		};

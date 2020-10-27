@@ -1,12 +1,12 @@
 import * as Immutable from 'immutable';
-import { Cube } from './cube';
+import { Dodecahedron } from './dodecahedron';
 
 export type StateParams = {
-		cube?: Cube;
+		dodecahedron?: Dodecahedron;
 		speed?: number;
 }
 
-export class State extends Immutable.Record({cube: new Cube(), speed: 1}) {
+export class State extends Immutable.Record({dodecahedron: new Dodecahedron(), speed: 1}) {
 		constructor(params?: StateParams) {
 				params ? super(params) : super();
 		}
