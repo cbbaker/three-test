@@ -33,8 +33,18 @@ export class Dodecahedron extends Immutable.Record({
 				return this.with({ time: newTime });
 		}
 
+		static randNormal(mu: number, sigma: number) {
+				let u = 0, v = 0;
+				while(u === 0) u = Math.random(); //Converting [0,1) to (0,1)
+				while(v === 0) v = Math.random();
+				const val = Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
+				return sigma * val + mu;
+		}
 		static computeColor(): three.Color {
-				return new three.Color().setHSL(Math.random(), 0.5, 0.5)
+				const sat = Dodecahedron.randNormal(0.5, 0.2);
+				const lum = Dodecahedron.randNormal(0.5, 0.2);
+				const clamp = (val: number) => Math.max(Math.min(val, 1), 0);
+				return new three.Color().setHSL(Math.random(), clamp(sat), clamp(lum));
 		}
 
 		static computeCenter(vertices: three.Vector3[], indices: number[]): three.Vector3 {
