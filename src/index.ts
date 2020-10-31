@@ -72,10 +72,12 @@ const game = clock.withLatestFrom(state, (_: Clock, state: State) => state);
   
 function setup() {
 		const canvas = document.querySelector<HTMLCanvasElement>('#canvas');
-		canvas.width = 640;
-		canvas.height = 480;
-		canvas.style.width = '640px';
-		canvas.style.height = '480px';
+		const width = canvas.clientWidth
+		const height = width * 9 / 16;
+		canvas.width = width;
+		canvas.height = height;
+		canvas.style.width = width + 'px';
+		canvas.style.height = height + 'px';
     const camera = new three.PerspectiveCamera( 70, canvas.width / canvas.height, 0.01, 10 ); 
     camera.position.z = 8;
 		
@@ -83,6 +85,13 @@ function setup() {
 		
 		const mesh = Dodecahedron.object3D();
     scene.add( mesh );
+
+		const ambient = new three.AmbientLight(0x808080);
+		scene.add(ambient);
+
+		const right = new three.PointLight;
+		right.position.set(5, 5, 5);
+		scene.add(right);
 		
     const renderer = new three.WebGLRenderer({
 				antialias: true,
@@ -91,6 +100,14 @@ function setup() {
     renderer.setSize( canvas.width, canvas.height );
 
 		return ({ dodecahedron: { spline, time } }: State) => {
+				const width = canvas.clientWidth;
+				const height = canvas.clientHeight;
+				const needsResize = canvas.width !== width || canvas.height !== height;
+				if (needsResize) {
+						renderer.setSize(width, height, false);
+						camera.aspect = width / height;
+						camera.updateProjectionMatrix();
+				}
 				mesh.quaternion.copy(spline.evalAt(time));
 				renderer.render(scene, camera);
 		};
