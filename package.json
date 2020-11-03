@@ -41,13 +41,15 @@
 		},
 		"dependencies": {
 				"@types/mathjs": "^6.0.5",
+				"bootstrap": "^4.5.3",
 				"immutable": "^4.0.0-rc.12",
+				"jquery": "^1.9.1",
 				"lodash": "^4.17.20",
 				"mathjs": "^7.5.1",
+				"popper.js": "^1.16.1",
 				"postcss-preset-env": "^6.7.0",
 				"rxjs": "^6.6.3",
 				"rxjs-compat": "^6.6.3",
-				"tailwindcss": "^1.9.2",
 				"three": "^0.121.1"
 		}
 }

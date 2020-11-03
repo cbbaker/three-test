@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html>
   <head>
@@ -7,46 +6,61 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 	</head>
   <body>
-		<div class="px-8 py-12 flex container">
-			<canvas id="canvas" class="w-2/3"></canvas>
-			<div class="w-1/3 rounded-lg shadow-lg bg-gray-300 m-4 p-4">
-				<h2 class="text-bold text-center">Controls</h2>
-				<form>
-				<h3>Colors</h3>
-				<h4>Saturation</h4>
-					<input class="rounded-lg overflow-hidden appearance-none bg-gray-400 h-3 w-128"
-								 name="saturationAverage" 
-								 id="saturationAverage" 
-								 type="range" min="0" max="1" step="0.01" value="0.5"
-								 />
-					<label for="saturationAverage">Average</label>
-					<input class="rounded-lg overflow-hidden appearance-none bg-gray-400 h-3 w-128"
-								 name="saturationStdDev"
-								 id="saturationStdDev"
-								 type="range" min="0" max="1" step="0.01" value="0.02"
-								 />
-					<label for="saturationStdDev">Std Dev.</label>
-				<h4>Luminosity</h4>
-					<input class="rounded-lg overflow-hidden appearance-none bg-gray-400 h-3 w-128"
-								 name="luminosityAverage" 
-								 id="luminosityAverage" 
-								 type="range" min="0" max="1" step="0.01" value="0.5"
-								 />
-					<label for="luminosityAverage">Average</label>
-					<input class="rounded-lg overflow-hidden appearance-none bg-gray-400 h-3 w-128"
-								 name="luminosityStdDev"
-								 id="luminosityStdDev"
-								 type="range" min="0" max="1" step="0.01" value="0.02"
-								 />
-					<label for="luminosityStdDev">Std Dev.</label>
-					<h4>Stellation size</h4>
-					<input class="rounded-lg overflow-hidden appearance-none bg-gray-400 h-3 w-128"
-								 name="stellationSize"
-								 id="stellationSize"
-								 type="range" min="-1" max="4" step="0.02" value="2"
-								 />
-					<label for="stellationSize">Size</label>
-				</form>
+		<div class="container">
+			<div class="row">
+				<div class="col-12 col-md-8">
+					<canvas id="canvas"></canvas>
+				</div>
+				<div class="col-12 col-md-4">
+					<div class="card">
+						<div class="card-header">
+							Controls
+						</div>
+						<div class="card-body">
+							<form>
+								<div class="form-group">
+									<h4>Saturation</h4>
+									<label for="saturationAverage">Average</label>
+									<input type="range" class="form-control-range"
+												 id="saturationAverage"
+												 name="saturationAverage"
+												 min="0" max="1" step="0.01" value="0.5"
+												 />
+									<label for="saturationStdDev">StdDev</label>
+									<input type="range" class="form-control-range"
+												 id="saturationStdDev"
+												 name="saturationStdDev"
+												 min="0" max="1" step="0.01" value="0.02"
+												 />
+								</div>
+								<div class="form-group">
+									<h4>Luminosity</h4>
+									<label for="luminosityAverage">Average</label>
+									<input type="range" class="form-control-range"
+												 id="luminosityAverage"
+												 name="luminosityAverage"
+												 min="0" max="1" step="0.01" value="0.5"
+												 />
+									<label for="luminosityStdDev">StdDev</label>
+									<input type="range" class="form-control-range"
+												 id="luminosityStdDev"
+												 name="luminosityStdDev"
+												 min="0" max="1" step="0.01" value="0.02"
+												 />
+								</div>
+								<div class="form-group">
+									<h4>Stellation</h4>
+									<label for="stellationSize">Size</label>
+									<input type="range" class="form-control-range"
+												 id="stellationSize"
+												 name="stellationSize"
+												 min="-1" max="4" step="0.02" value="2"
+												 />
+								</div>
+							</form>
+						</div>
+					</div>
+				</div>
 			</div>
 		</div>
 	</body>

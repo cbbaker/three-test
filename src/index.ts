@@ -1,3 +1,4 @@
+import 'bootstrap/dist/css/bootstrap.min.css';
 import * as three from 'three';
 import * as _ from 'lodash';
 import * as Rx from 'rxjs-compat';
