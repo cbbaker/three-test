@@ -15,46 +15,56 @@ type NormalDist = {
 		sigma: number;
 }
 
-type ControlState = {
+type ColorState = {
 		saturation: NormalDist;
 		luminosity: NormalDist;
+}
+
+type ControlState = {
 		stellationSize: number;
 }
 
-function initControls(): Rx.Observable<ControlState> {
-		const sa = document.querySelector('#saturationAverage');
-		const ss = document.querySelector('#saturationStdDev');
-		const la = document.querySelector('#luminosityAverage');
-		const ls = document.querySelector('#luminosityStdDev');
-		const st = document.querySelector('#stellationSize');
-		if (sa && ss && la && ls && st) {
+function initColors(): Rx.Observable<ColorState> {
+		const sa = document.querySelector<HTMLInputElement>('#saturationAverage');
+		const ss = document.querySelector<HTMLInputElement>('#saturationStdDev');
+		const la = document.querySelector<HTMLInputElement>('#luminosityAverage');
+		const ls = document.querySelector<HTMLInputElement>('#luminosityStdDev');
+		if (sa && ss && la && ls) {
 				const smu = Rx.Observable
 						.fromEvent(sa, 'change')
 						.map((event: Event) => parseFloat((event.target as HTMLInputElement).value))
-						.startWith(0.5);
+						.startWith(parseFloat(sa.value));
 				const ssigma = Rx.Observable
 						.fromEvent(ss, 'change')
 						.map((event: Event) => parseFloat((event.target as HTMLInputElement).value))
-						.startWith(0.2);
+						.startWith(parseFloat(ss.value));
 				const lmu = Rx.Observable
 						.fromEvent(la, 'change')
 						.map((event: Event) => parseFloat((event.target as HTMLInputElement).value))
-						.startWith(0.5);
+						.startWith(parseFloat(la.value));
 				const lsigma = Rx.Observable
 						.fromEvent(ls, 'change')
 						.map((event: Event) => parseFloat((event.target as HTMLInputElement).value))
-						.startWith(0.2);
-				const stellationSize = Rx.Observable
-						.fromEvent(st, 'change')
-						.map((event: Event) => parseFloat((event.target as HTMLInputElement).value))
-						.startWith(2)
+						.startWith(parseFloat(ls.value));
 				return Rx.Observable
-						.combineLatest(smu, ssigma, lmu, lsigma, stellationSize)
-						.map(([smu, ssigma, lmu, lsigma, stellationSize]) => ({
+						.combineLatest(smu, ssigma, lmu, lsigma)
+						.map(([smu, ssigma, lmu, lsigma]) => ({
 								saturation: { mu: smu, sigma: ssigma },
 								luminosity: { mu: lmu, sigma: lsigma },
-								stellationSize,
 						}));
+		}
+
+		throw new Error("Can't find range sliders")
+}
+
+function initControls(): Rx.Observable<ControlState> {
+		const st = document.querySelector<HTMLInputElement>('#stellationSize');
+		if (st) {
+				return Rx.Observable
+						.fromEvent(st, 'input')
+						.map((event: Event) => parseFloat((event.target as HTMLInputElement).value))
+						.startWith(parseFloat(st.value))
+						.map(stellationSize => ({ stellationSize }));
 		}
 
 		throw new Error("Can't find range sliders")
@@ -122,7 +132,7 @@ export class Dodecahedron extends Immutable.Record({
 						geometry.elementsNeedUpdate = true;
 				});
 
-				return point.addScaledVector(n, 2);
+				return point;
 		}
 
 		static setFaceColors(faces: three.Face3[], saturation: NormalDist, luminosity: NormalDist): void {
@@ -136,7 +146,7 @@ export class Dodecahedron extends Immutable.Record({
 				}
 		}
 
-		static setFaceColor(faces: three.Face3[], start: number, { saturation, luminosity }: ControlState): void {
+		static setFaceColor(faces: three.Face3[], start: number, { saturation, luminosity }: ColorState): void {
 				const color = Dodecahedron.computeColor(saturation, luminosity);
 				faces[start+0].color = color;
 				faces[start+1].color = color;
@@ -148,6 +158,7 @@ export class Dodecahedron extends Immutable.Record({
 		static addFaces(geometry: three.Geometry,
 										indices: [number, number, number, number, number],
 										controls: Rx.Observable<ControlState>,
+										colors: Rx.Observable<ColorState>,
 									 ): void {
 				const center = Dodecahedron.computeCenter(geometry, indices, controls);
 				const newIndex = geometry.vertices.length;
@@ -163,8 +174,8 @@ export class Dodecahedron extends Immutable.Record({
 				geometry.faces.push(new three.Face3(newIndex, i4, i5));
 				geometry.faces.push(new three.Face3(newIndex, i5, i1));
 
-				controls.subscribe((controlState: ControlState) => {
-						Dodecahedron.setFaceColor(geometry.faces, start, controlState)
+				colors.subscribe((colorState: ColorState) => {
+						Dodecahedron.setFaceColor(geometry.faces, start, colorState)
 						geometry.elementsNeedUpdate = true;
 				});
 		}
@@ -201,22 +212,23 @@ export class Dodecahedron extends Immutable.Record({
 						new three.Vector3(-phi, -invPhi, 0),  // 19
 				);
 
+				const colors = initColors();
 				const controls = initControls();
 
-				this.addFaces(geometry, [ 0, 12,  2, 17, 16], controls);
-				this.addFaces(geometry, [ 0,  8,  4, 14, 12], controls);
-				this.addFaces(geometry, [ 4, 18, 19,  6, 14], controls);
-				this.addFaces(geometry, [ 2, 12, 14,  6, 10], controls);
+				this.addFaces(geometry, [ 0, 12,  2, 17, 16], controls, colors);
+				this.addFaces(geometry, [ 0,  8,  4, 14, 12], controls, colors);
+				this.addFaces(geometry, [ 4, 18, 19,  6, 14], controls, colors);
+				this.addFaces(geometry, [ 2, 12, 14,  6, 10], controls, colors);
 
-				this.addFaces(geometry, [ 2, 10, 11,  3, 17], controls);
-				this.addFaces(geometry, [ 0, 16,  1,  9,  8], controls);
-				this.addFaces(geometry, [ 4,  8,  9,  5, 18], controls);
-				this.addFaces(geometry, [ 6, 19,  7, 11, 10], controls);
+				this.addFaces(geometry, [ 2, 10, 11,  3, 17], controls, colors);
+				this.addFaces(geometry, [ 0, 16,  1,  9,  8], controls, colors);
+				this.addFaces(geometry, [ 4,  8,  9,  5, 18], controls, colors);
+				this.addFaces(geometry, [ 6, 19,  7, 11, 10], controls, colors);
 
-				this.addFaces(geometry, [ 1, 16, 17,  3, 13], controls);
-				this.addFaces(geometry, [ 1, 13, 15,  5,  9], controls);
-				this.addFaces(geometry, [ 5, 15,  7, 19, 18], controls);
-				this.addFaces(geometry, [ 3, 11,  7, 15, 13], controls);
+				this.addFaces(geometry, [ 1, 16, 17,  3, 13], controls, colors);
+				this.addFaces(geometry, [ 1, 13, 15,  5,  9], controls, colors);
+				this.addFaces(geometry, [ 5, 15,  7, 19, 18], controls, colors);
+				this.addFaces(geometry, [ 3, 11,  7, 15, 13], controls, colors);
 
 				controls.subscribe(() => {
 						geometry.computeBoundingSphere();
