@@ -6,8 +6,8 @@
 		"scripts": {
 				"test": "mocha -r ts-node/register -r @babel/register src/**/*.test.*",
 				"watch": "webpack --watch",
-				"start": "webpack-dev-server --open --config webpack.dev.js",
-				"build": "webpack --config webpack.prod.js",
+				"start": "webpack-dev-server --open --config webpack.dev.cjs",
+				"build": "webpack --config webpack.prod.cjs",
 				"predeploy": "npm run build",
 				"deploy": "gh-pages -d dist"
 		},
