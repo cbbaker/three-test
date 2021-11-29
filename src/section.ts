@@ -26,7 +26,7 @@ export default class Section<T extends number[]> {
 		split(iterations: number): Section<T>[] {
 				if (iterations > 0) {
 						let halves = this.halve();
-						return _.flatMap(halves, (section: Section<T>) => section.split(iterations - 1));
+						return halves.flatMap((section: Section<T>) => section.split(iterations - 1));
 				} else {
 						return [this];
 				}
@@ -37,7 +37,7 @@ export default class Section<T extends number[]> {
 						return [this];
 				} else {
 						let halves = this.halve();
-						return _.flatMap(halves, section => section.adaptiveSplit(condition));
+						return halves.flatMap(section => section.adaptiveSplit(condition));
 				}
 		}
 }

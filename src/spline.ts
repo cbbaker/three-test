@@ -147,11 +147,11 @@ export default class Spline {
 		}
 
 		split(iterations: number): Section<number[]>[] {
-				return _.flatMap(this.sections, section => section.split(iterations));
+				return this.sections.flatMap(section => section.split(iterations));
 		}
 
 		adaptiveSplit(condition: (section: Section<number[]>) => boolean): Section<number[]>[] {
-				return _.flatMap(this.sections, section => section.adaptiveSplit(condition));
+				return this.sections.flatMap(section => section.adaptiveSplit(condition));
 		}
 
 		flattenedPoints(iterations: number): number[][] {

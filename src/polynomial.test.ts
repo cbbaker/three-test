@@ -1,4 +1,4 @@
-import { expect } from 'chai'
+import { expect } from 'chai';
 import Polynomial from './polynomial';
 
 describe('Polynomial', () => {
@@ -11,11 +11,11 @@ describe('Polynomial', () => {
 
 		it('derivative computes the derivative', () => {
 				const poly = new Polynomial([1, -2, 3], 1);
-				expect(poly.derivative().coefficients).to.equal([-2, 6]);
+				expect(poly.derivative().coefficients).to.deep.equal([-2, 6]);
 		});
 
 		it('toControlPoints converts to bezier spline', () => {
 				const poly = new Polynomial([0, 3, -9, 6], 1);
-				expect(poly.toControlPoints()).to.equal([0, 1, -1, 0]);
+				expect(poly.toControlPoints()).to.deep.equal([0, 1, -1, 0]);
 		});
 });

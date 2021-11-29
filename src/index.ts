@@ -6,7 +6,8 @@ import * as Immutable from 'immutable';
 import './styles.css';
 import { State } from './state';
 import input, { Input } from './input';
-import { Dodecahedron } from './dodecahedron';
+// import { Dodecahedron } from './dodecahedron';
+import { Zonohedron } from './zonohedron';
 import clock, { Clock } from './clock';
 import QuaternionSpline from './quaternionSpline';
 
@@ -41,8 +42,8 @@ function randomQuats(): three.Quaternion[] {
 const root2over2 = 0.5 * Math.sqrt(2);
 
 const initialState = new State({
-		dodecahedron: new Dodecahedron(randomQuats()),
-		// dodecahedron: new Dodecahedron([
+		zonohedron: new Zonohedron(randomQuats()),
+		// zonohedron: new Zonohedron([
 		// 		new three.Quaternion(0, 1, 0, 0), 
 		// 		new three.Quaternion(0, 0, 0, 1),
 		// 		new three.Quaternion(0, -1, 0, 0),
@@ -55,13 +56,13 @@ const events = clock.withLatestFrom(input);
 
 type Reducer = (state: State) => State;
 
-const dodecahedron = events.map(([clock, input]: [Clock, Input]) => (state: State) => {
-		const dodecahedron = state.dodecahedron.process(clock, input);
-		return state.with({ dodecahedron });
+const zonohedron = events.map(([clock, input]: [Clock, Input]) => (state: State) => {
+		const zonohedron = state.zonohedron.process(clock, input);
+		return state.with({ zonohedron });
 });
 
 const state = Rx.Observable
-		.merge(dodecahedron)
+		.merge(zonohedron)
 		.startWith(initialState)
 		.scan((state: State, reducer: Reducer) => reducer(state));
 
@@ -80,11 +81,11 @@ function setup() {
 		canvas.style.width = width + 'px';
 		canvas.style.height = height + 'px';
     const camera = new three.PerspectiveCamera( 70, canvas.width / canvas.height, 0.01, 10 ); 
-    camera.position.z = 8;
+    camera.position.z = 6;
 		
     const scene = new three.Scene();
 		
-		const mesh = Dodecahedron.object3D();
+		const mesh = Zonohedron.object3D();
     scene.add( mesh );
 
 		const ambient = new three.AmbientLight(0x808080);
@@ -100,7 +101,7 @@ function setup() {
 		});
     renderer.setSize( canvas.width, canvas.height );
 
-		return ({ dodecahedron: { spline, time } }: State) => {
+		return ({ zonohedron: { spline, time } }: State) => {
 				const width = canvas.clientWidth;
 				const height = canvas.clientHeight;
 				const needsResize = canvas.width !== width || canvas.height !== height;
