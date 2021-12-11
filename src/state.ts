@@ -1,14 +1,22 @@
+import * as three from 'three';
 import * as Immutable from 'immutable';
-import { Dodecahedron } from './dodecahedron';
-import { Zonohedron } from './zonohedron';
+import { AnimatedOrientation } from './AnimatedOrientation';
 
 export type StateParams = {
-		dodecahedron?: Dodecahedron;
-		zonohedron?: Zonohedron;
+		object?: AnimatedOrientation;
+		geometryType?: 'dodecahedron' | 'zonohedron';
+		scene?: three.Scene;
+		mesh?: three.Object3D;
 		speed?: number;
 }
 
-export class State extends Immutable.Record({dodecahedron: new Dodecahedron(), zonohedron: new Zonohedron(), speed: 1}) {
+export class State extends Immutable.Record({
+		object: new AnimatedOrientation(),
+		speed: 1,
+		geometryType: undefined,
+		scene: undefined,
+		mesh: undefined,
+}) {
 		constructor(params?: StateParams) {
 				params ? super(params) : super();
 		}

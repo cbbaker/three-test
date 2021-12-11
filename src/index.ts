@@ -1,17 +1,13 @@
 import 'bootstrap/dist/css/bootstrap.min.css';
 import * as three from 'three';
-import * as _ from 'lodash';
 import * as Rx from 'rxjs-compat';
-import * as Immutable from 'immutable';
 import './styles.css';
 import { State } from './state';
 import input, { Input } from './input';
-// import { Dodecahedron } from './dodecahedron';
+import { Dodecahedron } from './dodecahedron';
 import { Zonohedron } from './zonohedron';
 import clock, { Clock } from './clock';
-import QuaternionSpline from './quaternionSpline';
-
-const root3over2 = 0.5 * Math.sqrt(3);
+import { AnimatedOrientation } from './AnimatedOrientation';
 
 function randomQuat(): three.Quaternion {
 		for (;;) {
@@ -39,39 +35,64 @@ function randomQuats(): three.Quaternion[] {
 		return quats;
 }
 
-const root2over2 = 0.5 * Math.sqrt(2);
-
 const initialState = new State({
-		zonohedron: new Zonohedron(randomQuats()),
-		// zonohedron: new Zonohedron([
-		// 		new three.Quaternion(0, 1, 0, 0), 
-		// 		new three.Quaternion(0, 0, 0, 1),
-		// 		new three.Quaternion(0, -1, 0, 0),
-		// 		new three.Quaternion(0, 0, 0, 1),
-		// 		new three.Quaternion(0, 1, 0, 0), 
-		// ]),
+		object: new AnimatedOrientation(randomQuats()),
+		scene: new three.Scene(),
 });
 
 const events = clock.withLatestFrom(input);
 
-type Reducer = (state: State) => State;
+type Updater = (state: State) => State;
 
-const zonohedron = events.map(([clock, input]: [Clock, Input]) => (state: State) => {
-		const zonohedron = state.zonohedron.process(clock, input);
-		return state.with({ zonohedron });
+type Cleanup = () => void;
+let cleanup = [] as Cleanup[];
+
+function doCleanup() {
+		cleanup.forEach(action => action());
+		cleanup = [];
+}
+  
+function addZonohedron(state: State) {
+		const mesh = Zonohedron.object3D();
+    state.scene.add( mesh );
+		cleanup.push(() => { state.scene.remove(mesh) })
+		return state.with({ mesh, geometryType: 'zonohedron' });
+}
+
+function addDodecahedron(state: State) {
+		const mesh = Dodecahedron.object3D();
+    state.scene.add( mesh );
+		cleanup.push(() => { state.scene.remove(mesh) })
+		return state.with({ mesh, geometryType: 'dodecahedron' });
+}
+
+const updater = events.map(([clock, input]: [Clock, Input]) => (state: State) => {
+		const object = state.object.process(clock, input);
+		const newState = state.with({ object });
+		const geometryType = input.geometry;
+		if (newState.geometryType !== geometryType) {
+				doCleanup();
+				switch (geometryType) {
+						case 'dodecahedron':
+								return addDodecahedron(state);
+						case 'zonohedron':
+								return addZonohedron(state);
+				}
+		}
+		return newState;
 });
 
 const state = Rx.Observable
-		.merge(zonohedron)
+		.merge(updater)
 		.startWith(initialState)
-		.scan((state: State, reducer: Reducer) => reducer(state));
+		.scan((state: State, updater: Updater) => updater(state));
 
 const game = clock.withLatestFrom(state, (_: Clock, state: State) => state);
 
 // clock.sampleTime(5000, Rx.Scheduler.animationFrame).subscribe((clock) => {
     // document.querySelector("#clock").innerHTML = `${clock.fps}`;
 // });
-  
+
 function setup() {
 		const canvas = document.querySelector<HTMLCanvasElement>('#canvas');
 		const width = canvas.clientWidth
@@ -83,17 +104,12 @@ function setup() {
     const camera = new three.PerspectiveCamera( 70, canvas.width / canvas.height, 0.01, 10 ); 
     camera.position.z = 6;
 		
-    const scene = new three.Scene();
-		
-		const mesh = Zonohedron.object3D();
-    scene.add( mesh );
-
 		const ambient = new three.AmbientLight(0x808080);
-		scene.add(ambient);
+		initialState.scene.add(ambient);
 
 		const right = new three.PointLight;
 		right.position.set(5, 5, 5);
-		scene.add(right);
+		initialState.scene.add(right);
 		
     const renderer = new three.WebGLRenderer({
 				antialias: true,
@@ -101,7 +117,7 @@ function setup() {
 		});
     renderer.setSize( canvas.width, canvas.height );
 
-		return ({ zonohedron: { spline, time } }: State) => {
+		return ({ object: { spline, time }, scene, mesh }: State) => {
 				const width = canvas.clientWidth;
 				const height = canvas.clientHeight;
 				const needsResize = canvas.width !== width || canvas.height !== height;
@@ -110,7 +126,9 @@ function setup() {
 						camera.aspect = width / height;
 						camera.updateProjectionMatrix();
 				}
-				mesh.quaternion.copy(spline.evalAt(time));
+				if (mesh !== undefined) {
+						mesh.quaternion.copy(spline.evalAt(time));
+				}
 				renderer.render(scene, camera);
 		};
 }

@@ -1,15 +1,6 @@
 import * as Rx from 'rxjs-compat';
 import * as three from 'three';
-import * as Immutable from 'immutable';
-import QuaternionSpline from './quaternionSpline';
-import { Input } from './input';
-import { Clock } from './clock';
 import bitGenerator from './bitGenerator';
-
-type ZonohedronParams = {
-		spline?: QuaternionSpline;
-		time?: number;
-}
 
 type NormalDist = {
 		mu: number;
@@ -59,49 +50,31 @@ function initColors(): Rx.Observable<ColorState> {
 }
 
 function initControls(): Rx.Observable<ControlState> {
-		return Rx.Observable.from([{
-				points: [
-						new three.Vector3(1, 0, 0),
-						new three.Vector3(0, 1, 0),
-						new three.Vector3(0, 0, 1),
-				]
-		}]);
-		// const st = document.querySelector<HTMLInputElement>('#stellationSize');
-		// if (st) {
-		// 		return Rx.Observable
-		// 				.fromEvent(st, 'input')
-		// 				.map((event: Event) => parseFloat((event.target as HTMLInputElement).value))
-		// 				.startWith(parseFloat(st.value))
-		// 				.map(stellationSize => ({ stellationSize }));
-		// }
+		const root2over2 = 1.0/Math.sqrt(2);
+		const p1 = [
+				new three.Vector3(1, root2over2, 0),
+				new three.Vector3(1, -root2over2, 0),
+				new three.Vector3(0,  root2over2, 1),
+				new three.Vector3(0, -root2over2, 1),
+		]
 
-		// throw new Error("Can't find range sliders")
+		const phi = (1 + Math.sqrt(5)) / 2;
+		const p2 = [
+				new three.Vector3(0, 1, phi),
+				new three.Vector3(0, 1, -phi),
+				new three.Vector3(1, phi, 0),
+				new three.Vector3(1, -phi, 0),
+				new three.Vector3(phi, 0, 1),
+				new three.Vector3(-phi, 0, 1),
+		]
+
+		const points = true ? p2 : p1;
+
+		return Rx.Observable.from([{ points }]);
 }
 
 
-export class Zonohedron extends Immutable.Record({
-		spline: new QuaternionSpline([]),
-		time: 0,
-}) {
-		constructor(qControls: three.Quaternion[] = []) {
-				const spline = new QuaternionSpline(qControls);
-				super({ spline });
-		}
-
-		with(values: ZonohedronParams) {
-				return this.merge(values) as this;
-		}
-
-		process({ delta }: Clock, { speed }: Input) {
-				const { time, spline: { end } } = this;
-				let newTime = time + delta * speed;
-				while (newTime > end) {
-						newTime -= end;
-				}
-
-				return this.with({ time: newTime });
-		}
-
+export class Zonohedron {
 		static randNormal(mu: number, sigma: number) {
 				let u = 0, v = 0;
 				while(u === 0) u = Math.random(); //Converting [0,1) to (0,1)
@@ -144,64 +117,45 @@ export class Zonohedron extends Immutable.Record({
 		static object3D(): three.Object3D {
 				const geometry = new three.Geometry();
 
-				const root2over2 = 1.0/Math.sqrt(2);
-				const p1 = [
-						new three.Vector3(1, root2over2, 0),
-						new three.Vector3(1, -root2over2, 0),
-						new three.Vector3(0,  root2over2, 1),
-						new three.Vector3(0, -root2over2, 1),
-				]
-
-				const phi = (1 + Math.sqrt(5)) / 2;
-				const p2 = [
-						new three.Vector3(0, 1, phi),
-						new three.Vector3(0, 1, -phi),
-						new three.Vector3(1, phi, 0),
-						new three.Vector3(1, -phi, 0),
-						new three.Vector3(phi, 0, 1),
-						new three.Vector3(-phi, 0, 1),
-				]
-
-				const points = true ? p2 : p1;
-
-				let bitG = bitGenerator(points.length);
-
-				for (let bits of bitG) {
-						let zero = new three.Vector3(0, 0, 0);
-						geometry.vertices.push(
-								bits.reduce((total: three.Vector3, bit: 0 | 1, index: number) => {
-										if (bit === 1) {
-												total.add(points[index])
-										}
-										return total;
-								}, zero)
-						);
-				}
-
-				const center = geometry.vertices[geometry.vertices.length - 1].clone().multiplyScalar(0.5);
-				geometry.vertices.forEach(v => v.sub(center));
-
 				const colors = initColors();
 				const controls = initControls();
 
-				for (let i = 0; i < points.length - 1; i++) {
-						for (let j = i+1; j < points.length; j++) {
-								let indices = [] as number[];
-								for (let k = 0; k < points.length; k++) {
-										if (k !== i && k !== j) {
-												indices.push((1<<k));
+				controls.subscribe(({ points }) => {
+						let bitG = bitGenerator(points.length);
+
+						for (let bits of bitG) {
+								let zero = new three.Vector3(0, 0, 0);
+								geometry.vertices.push(
+										bits.reduce((total: three.Vector3, bit: 0 | 1, index: number) => {
+												if (bit === 1) {
+														total.add(points[index])
+												}
+												return total;
+										}, zero)
+								);
+						}
+
+						const center = geometry.vertices[geometry.vertices.length - 1].clone().multiplyScalar(0.5);
+						geometry.vertices.forEach(v => v.sub(center));
+
+						for (let i = 0; i < points.length - 1; i++) {
+								for (let j = i+1; j < points.length; j++) {
+										let indices = [] as number[];
+										for (let k = 0; k < points.length; k++) {
+												if (k !== i && k !== j) {
+														indices.push((1<<k));
+												}
+										}
+										let innerBitG = bitGenerator(indices.length);
+										let vertices = [0, (1<<i), (1<<i) + (1<<j), (1<<j)];
+										for (let innerBits of innerBitG) {
+												let offset = innerBits.reduce((total, bit, index) => bit === 1 ? total + indices[index] : total, 0)
+												this.addFaces(geometry, vertices.map(v => v+offset) as [number, number, number, number], colors);
 										}
 								}
-								let innerBitG = bitGenerator(indices.length);
-								let vertices = [0, (1<<i), (1<<i) + (1<<j), (1<<j)];
-								for (let innerBits of innerBitG) {
-										let offset = innerBits.reduce((total, bit, index) => bit === 1 ? total + indices[index] : total, 0)
-										this.addFaces(geometry, vertices.map(v => v+offset) as [number, number, number, number], colors);
-								}
 						}
-				}
 
-				controls.subscribe(() => {
+
 						geometry.computeBoundingSphere();
 						geometry.computeFaceNormals();
 				});
