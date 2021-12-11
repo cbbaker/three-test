@@ -8,6 +8,7 @@ export type StateParams = {
 		scene?: three.Scene;
 		mesh?: three.Object3D;
 		speed?: number;
+		cameraZ?: number;
 }
 
 export class State extends Immutable.Record({
@@ -16,6 +17,7 @@ export class State extends Immutable.Record({
 		geometryType: undefined,
 		scene: undefined,
 		mesh: undefined,
+		cameraZ: undefined,
 }) {
 		constructor(params?: StateParams) {
 				params ? super(params) : super();

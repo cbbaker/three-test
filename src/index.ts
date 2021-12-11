@@ -68,7 +68,7 @@ function addDodecahedron(state: State) {
 
 const updater = events.map(([clock, input]: [Clock, Input]) => (state: State) => {
 		const object = state.object.process(clock, input);
-		const newState = state.with({ object });
+		const newState = state.with({ object, cameraZ: input.cameraZ });
 		const geometryType = input.geometry;
 		if (newState.geometryType !== geometryType) {
 				doCleanup();
@@ -117,7 +117,8 @@ function setup() {
 		});
     renderer.setSize( canvas.width, canvas.height );
 
-		return ({ object: { spline, time }, scene, mesh }: State) => {
+		return ({ object: { spline, time }, scene, mesh, cameraZ }: State) => {
+				camera.position.z = cameraZ;
 				const width = canvas.clientWidth;
 				const height = canvas.clientHeight;
 				const needsResize = canvas.width !== width || canvas.height !== height;

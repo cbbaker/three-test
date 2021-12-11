@@ -5,6 +5,7 @@ import * as Rx from 'rxjs-compat';
 export type Input = {
 		geometry: 'dodecahedron' | 'zonohedron';
 		speed: number;
+		cameraZ: number;
 };
 
 const dodecahedronOption = document.querySelector<HTMLInputElement>('#dodecahedronOption');
@@ -16,26 +17,29 @@ const geometry = Rx.Observable
 		.map((event: InputEvent) => (event.target as HTMLInputElement).value)
 		.startWith('zonohedron');
 
-geometry.subscribe(console.log);
+function linearKeyControl(initialValue: number, inc: number, incKeys: string[], decKeys: string[]) {
+		const dec = 1 / inc;
 
-const inc = Math.sqrt(2);
-const dec = 1 / inc;
+		const plus = Rx.Observable.fromEvent(document, 'keypress')
+				.filter((event: KeyboardEvent) => incKeys.includes(event.key))
+				.map(() => inc)
 
-const plus = Rx.Observable.fromEvent(document, 'keypress')
-		.filter((event: KeyboardEvent) => event.key === '+' || event.key === '=')
-		.map(() => inc)
+		const minus = Rx.Observable.fromEvent(document, 'keypress')
+				.filter((event: KeyboardEvent) => decKeys.includes(event.key))
+				.map(() => dec)
 
-const minus = Rx.Observable.fromEvent(document, 'keypress')
-		.filter((event: KeyboardEvent) => event.key === '-')
-		.map(() => dec)
+		return Rx.Observable
+				.merge(plus, minus)
+				.startWith(1)
+				.scan((value, multipler) => ((value * multipler)), initialValue);
+}
 
-const speed = Rx.Observable
-		.merge(plus, minus)
-		.startWith(1)
-		.scan((speed, multipler) => ((speed * multipler)), 0.001);
+const speed = linearKeyControl(0.001, Math.sqrt(2), ['+', '='], ['-']);
+const cameraZ = linearKeyControl(6, Math.sqrt(Math.sqrt(2)), ['s'], ['w']);
 
-const input = Rx.Observable.combineLatest(geometry, speed, (geometry, speed) => ({geometry, speed}));
-
-input.subscribe(console.log)
+const input = Rx.Observable.combineLatest(
+		geometry, speed, cameraZ, 
+		(geometry, speed, cameraZ) => ({ geometry, speed, cameraZ })
+);
 
 export default input;
