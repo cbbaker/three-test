@@ -2,98 +2,11 @@ import * as Rx from 'rxjs-compat';
 import * as three from 'three';
 import * as Immutable from 'immutable';
 import QuaternionSpline from './quaternionSpline';
-import { Input } from './input';
+import { DodecahedronControlState, ColorState, NormalDist } from './input';
 import { Clock } from './clock';
 
-type DodecahedronParams = {
-		spline?: QuaternionSpline;
-		time?: number;
-}
-
-type NormalDist = {
-		mu: number;
-		sigma: number;
-}
-
-type ColorState = {
-		saturation: NormalDist;
-		luminosity: NormalDist;
-}
-
-type ControlState = {
-		stellationSize: number;
-}
-
-function initColors(): Rx.Observable<ColorState> {
-		const sa = document.querySelector<HTMLInputElement>('#saturationAverage');
-		const ss = document.querySelector<HTMLInputElement>('#saturationStdDev');
-		const la = document.querySelector<HTMLInputElement>('#luminosityAverage');
-		const ls = document.querySelector<HTMLInputElement>('#luminosityStdDev');
-		if (sa && ss && la && ls) {
-				const smu = Rx.Observable
-						.fromEvent(sa, 'change')
-						.map((event: Event) => parseFloat((event.target as HTMLInputElement).value))
-						.startWith(parseFloat(sa.value));
-				const ssigma = Rx.Observable
-						.fromEvent(ss, 'change')
-						.map((event: Event) => parseFloat((event.target as HTMLInputElement).value))
-						.startWith(parseFloat(ss.value));
-				const lmu = Rx.Observable
-						.fromEvent(la, 'change')
-						.map((event: Event) => parseFloat((event.target as HTMLInputElement).value))
-						.startWith(parseFloat(la.value));
-				const lsigma = Rx.Observable
-						.fromEvent(ls, 'change')
-						.map((event: Event) => parseFloat((event.target as HTMLInputElement).value))
-						.startWith(parseFloat(ls.value));
-				return Rx.Observable
-						.combineLatest(smu, ssigma, lmu, lsigma)
-						.map(([smu, ssigma, lmu, lsigma]) => ({
-								saturation: { mu: smu, sigma: ssigma },
-								luminosity: { mu: lmu, sigma: lsigma },
-						}));
-		}
-
-		throw new Error("Can't find range sliders")
-}
-
-function initControls(): Rx.Observable<ControlState> {
-		const st = document.querySelector<HTMLInputElement>('#stellationSize');
-		if (st) {
-				return Rx.Observable
-						.fromEvent(st, 'input')
-						.map((event: Event) => parseFloat((event.target as HTMLInputElement).value))
-						.startWith(parseFloat(st.value))
-						.map(stellationSize => ({ stellationSize }));
-		}
-
-		throw new Error("Can't find range sliders")
-}
-
-
-export class Dodecahedron extends Immutable.Record({
-		spline: new QuaternionSpline([]),
-		time: 0,
-}) {
-		constructor(qControls: three.Quaternion[] = []) {
-				const spline = new QuaternionSpline(qControls);
-				super({ spline });
-		}
-
-		with(values: DodecahedronParams) {
-				return this.merge(values) as this;
-		}
-
-		process({ delta }: Clock, { speed }: Input) {
-				const { time, spline: { end } } = this;
-				let newTime = time + delta * speed;
-				while (newTime > end) {
-						newTime -= end;
-				}
-
-				return this.with({ time: newTime });
-		}
-
+export class Dodecahedron
+{
 		static randNormal(mu: number, sigma: number) {
 				let u = 0, v = 0;
 				while(u === 0) u = Math.random(); //Converting [0,1) to (0,1)
@@ -110,7 +23,7 @@ export class Dodecahedron extends Immutable.Record({
 				return new three.Color().setHSL(Math.random(), clamp(sat), clamp(lum));
 		}
 
-		static computeCenter(geometry: three.Geometry, indices: number[], controls: Rx.Observable<ControlState>): three.Vector3 {
+		static computeCenter(geometry: three.Geometry, indices: number[], controls: Rx.Observable<DodecahedronControlState>): three.Vector3 {
 				const vertices = geometry.vertices;
 				const v0 = vertices[indices[0]];
 				const v1 = vertices[indices[1]].clone();
@@ -157,7 +70,7 @@ export class Dodecahedron extends Immutable.Record({
 
 		static addFaces(geometry: three.Geometry,
 										indices: [number, number, number, number, number],
-										controls: Rx.Observable<ControlState>,
+										controls: Rx.Observable<DodecahedronControlState>,
 										colors: Rx.Observable<ColorState>,
 									 ): void {
 				const center = Dodecahedron.computeCenter(geometry, indices, controls);
@@ -180,7 +93,7 @@ export class Dodecahedron extends Immutable.Record({
 				});
 		}
 
-		static object3D(): three.Object3D {
+		static object3D(colors: Rx.Observable<ColorState>, controls: Rx.Observable<DodecahedronControlState>): three.Object3D {
 				const geometry = new three.Geometry();
 				const phi = 0.5 * (1 + Math.sqrt(5));
 				const invPhi = 1.0 / phi;
@@ -211,9 +124,6 @@ export class Dodecahedron extends Immutable.Record({
 						new three.Vector3(-phi,  invPhi, 0),  // 18
 						new three.Vector3(-phi, -invPhi, 0),  // 19
 				);
-
-				const colors = initColors();
-				const controls = initControls();
 
 				this.addFaces(geometry, [ 0, 12,  2, 17, 16], controls, colors);
 				this.addFaces(geometry, [ 0,  8,  4, 14, 12], controls, colors);

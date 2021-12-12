@@ -1,6 +1,5 @@
+import * as three from 'three';
 import * as Rx from 'rxjs-compat';
-
-
 
 export type Input = {
 		geometry: 'dodecahedron' | 'zonohedron';
@@ -41,5 +40,91 @@ const input = Rx.Observable.combineLatest(
 		geometry, speed, cameraZ, 
 		(geometry, speed, cameraZ) => ({ geometry, speed, cameraZ })
 );
+
+export type NormalDist = {
+		mu: number;
+		sigma: number;
+}
+
+export type ColorState = {
+		saturation: NormalDist;
+		luminosity: NormalDist;
+}
+
+export type DodecahedronControlState = {
+		stellationSize: number;
+}
+
+export type ZonohedronControlState = {
+		points: three.Vector3[];
+}
+
+function normalDistControl(avgControl?: HTMLInputElement, stdDevControl?: HTMLInputElement): Rx.Observable<NormalDist> {
+		if (avgControl && stdDevControl) {
+				const mu = Rx.Observable
+						.fromEvent(avgControl, 'change')
+						.map((event: Event) => parseFloat((event.target as HTMLInputElement).value))
+						.startWith(parseFloat(avgControl.value));
+				const sigma = Rx.Observable
+						.fromEvent(stdDevControl, 'change')
+						.map((event: Event) => parseFloat((event.target as HTMLInputElement).value))
+						.startWith(parseFloat(stdDevControl.value));
+				return Rx.Observable.combineLatest(mu, sigma).map(([mu, sigma]) => ({ mu, sigma}));
+		}
+
+		throw new Error("Can't find range sliders")
+}
+
+export function initColors(): Rx.Observable<ColorState> {
+		const sa = document.querySelector<HTMLInputElement>('#saturationAverage');
+		const ss = document.querySelector<HTMLInputElement>('#saturationStdDev');
+		const saturation = normalDistControl(sa, ss);
+
+		const la = document.querySelector<HTMLInputElement>('#luminosityAverage');
+		const ls = document.querySelector<HTMLInputElement>('#luminosityStdDev');
+		const luminosity = normalDistControl(la, ls);
+
+		return Rx.Observable
+				.combineLatest(saturation, luminosity)
+				.map(([saturation, luminosity]) => ({saturation, luminosity,}));
+}
+
+export function initDodecahedronControls(): Rx.Observable<DodecahedronControlState> {
+		const st = document.querySelector<HTMLInputElement>('#stellationSize');
+		if (st) {
+				return Rx.Observable
+						.fromEvent(st, 'input')
+						.map((event: Event) => parseFloat((event.target as HTMLInputElement).value))
+						.startWith(parseFloat(st.value))
+						.map(stellationSize => ({ stellationSize }));
+		}
+
+		throw new Error("Can't find range sliders")
+}
+
+export function initZonohedronControls(): Rx.Observable<ZonohedronControlState> {
+		const root2over2 = 1.0/Math.sqrt(2);
+		const p1 = [
+				new three.Vector3(1, root2over2, 0),
+				new three.Vector3(1, -root2over2, 0),
+				new three.Vector3(0,  root2over2, 1),
+				new three.Vector3(0, -root2over2, 1),
+		]
+
+		const phi = (1 + Math.sqrt(5)) / 2;
+		const p2 = [
+				new three.Vector3(0, 1, phi),
+				new three.Vector3(0, 1, -phi),
+				new three.Vector3(1, phi, 0),
+				new three.Vector3(1, -phi, 0),
+				new three.Vector3(phi, 0, 1),
+				new three.Vector3(-phi, 0, 1),
+		]
+
+		const points = false ? p2 : p1;
+
+		return Rx.Observable.from([{ points }]);
+}
+
 
 export default input;

@@ -1,78 +1,7 @@
 import * as Rx from 'rxjs-compat';
 import * as three from 'three';
 import bitGenerator from './bitGenerator';
-
-type NormalDist = {
-		mu: number;
-		sigma: number;
-}
-
-type ColorState = {
-		saturation: NormalDist;
-		luminosity: NormalDist;
-}
-
-type ControlState = {
-		points: three.Vector3[];
-}
-
-function initColors(): Rx.Observable<ColorState> {
-		const sa = document.querySelector<HTMLInputElement>('#saturationAverage');
-		const ss = document.querySelector<HTMLInputElement>('#saturationStdDev');
-		const la = document.querySelector<HTMLInputElement>('#luminosityAverage');
-		const ls = document.querySelector<HTMLInputElement>('#luminosityStdDev');
-		if (sa && ss && la && ls) {
-				const smu = Rx.Observable
-						.fromEvent(sa, 'change')
-						.map((event: Event) => parseFloat((event.target as HTMLInputElement).value))
-						.startWith(parseFloat(sa.value));
-				const ssigma = Rx.Observable
-						.fromEvent(ss, 'change')
-						.map((event: Event) => parseFloat((event.target as HTMLInputElement).value))
-						.startWith(parseFloat(ss.value));
-				const lmu = Rx.Observable
-						.fromEvent(la, 'change')
-						.map((event: Event) => parseFloat((event.target as HTMLInputElement).value))
-						.startWith(parseFloat(la.value));
-				const lsigma = Rx.Observable
-						.fromEvent(ls, 'change')
-						.map((event: Event) => parseFloat((event.target as HTMLInputElement).value))
-						.startWith(parseFloat(ls.value));
-				return Rx.Observable
-						.combineLatest(smu, ssigma, lmu, lsigma)
-						.map(([smu, ssigma, lmu, lsigma]) => ({
-								saturation: { mu: smu, sigma: ssigma },
-								luminosity: { mu: lmu, sigma: lsigma },
-						}));
-		}
-
-		throw new Error("Can't find range sliders")
-}
-
-function initControls(): Rx.Observable<ControlState> {
-		const root2over2 = 1.0/Math.sqrt(2);
-		const p1 = [
-				new three.Vector3(1, root2over2, 0),
-				new three.Vector3(1, -root2over2, 0),
-				new three.Vector3(0,  root2over2, 1),
-				new three.Vector3(0, -root2over2, 1),
-		]
-
-		const phi = (1 + Math.sqrt(5)) / 2;
-		const p2 = [
-				new three.Vector3(0, 1, phi),
-				new three.Vector3(0, 1, -phi),
-				new three.Vector3(1, phi, 0),
-				new three.Vector3(1, -phi, 0),
-				new three.Vector3(phi, 0, 1),
-				new three.Vector3(-phi, 0, 1),
-		]
-
-		const points = true ? p2 : p1;
-
-		return Rx.Observable.from([{ points }]);
-}
-
+import { ColorState, ZonohedronControlState, NormalDist } from './input'
 
 export class Zonohedron {
 		static randNormal(mu: number, sigma: number) {
@@ -114,11 +43,8 @@ export class Zonohedron {
 				});
 		}
 
-		static object3D(): three.Object3D {
+		static object3D(colors: Rx.Observable<ColorState>, controls: Rx.Observable<ZonohedronControlState>): three.Object3D {
 				const geometry = new three.Geometry();
-
-				const colors = initColors();
-				const controls = initControls();
 
 				controls.subscribe(({ points }) => {
 						let bitG = bitGenerator(points.length);
