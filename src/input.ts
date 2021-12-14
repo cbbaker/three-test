@@ -102,6 +102,42 @@ export function initDodecahedronControls(): Rx.Observable<DodecahedronControlSta
 		throw new Error("Can't find range sliders")
 }
 
+function oddPolar(n: number): three.Vector3[] {
+		const angle = 2 * Math.PI / n;
+		const angleOffset = 0.5 * angle;
+		const sideLength = Math.sqrt(2 * (1 - Math.cos(angle)));
+		const zOffset = Math.sqrt(3) * 0.5 * sideLength;
+		const top = [] as three.Vector3[];
+		for (let i = 0; i < n; ++i) {
+				const angle = 2 * Math.PI * i / n;
+				const point = new three.Vector3(Math.cos(angle), Math.sin(angle), 1);
+				top.push(point);
+		}
+		return top;
+}
+
+function evenPolar(n: number): three.Vector3[] {
+		const angle = 2 * Math.PI / n;
+		const angleOffset = 0.5 * angle;
+		const sideLength = Math.sqrt(2 * (1 - Math.cos(angle)));
+		const zOffset = 0.5 * sideLength;
+		const top = [] as three.Vector3[];
+		for (let i = 0; i < n; ++i) {
+				const angle = 2 * Math.PI * i / n;
+				const point = new three.Vector3(Math.cos(angle), Math.sin(angle), 1);
+				top.push(point);
+		}
+		return top;
+}
+
+function polarZonohedron(n: number): three.Vector3[] {
+		if (n & 1) {
+				return oddPolar(n);
+		}
+
+		return evenPolar(n);
+}
+
 export function initZonohedronControls(): Rx.Observable<ZonohedronControlState> {
 		const root2over2 = 1.0/Math.sqrt(2);
 		const p1 = [
@@ -121,7 +157,9 @@ export function initZonohedronControls(): Rx.Observable<ZonohedronControlState> 
 				new three.Vector3(-phi, 0, 1),
 		]
 
-		const points = false ? p2 : p1;
+		const points = true ? p2 : p1;
+
+		// const points = polarZonohedron(5);
 
 		return Rx.Observable.from([{ points }]);
 }
