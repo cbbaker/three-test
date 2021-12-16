@@ -1,7 +1,7 @@
 import * as three from 'three';
 import * as Rx from 'rxjs-compat';
 import * as Immutable from 'immutable';
-import input, { Input, initColors, initDodecahedronControls, initZonohedronControls } from './input';
+import input, { Input } from './input';
 import { Dodecahedron } from './dodecahedron';
 import { Zonohedron } from './zonohedron';
 import clock, { Clock } from './clock';
@@ -78,14 +78,16 @@ function doCleanup() {
 }
   
 function addZonohedron(state: State) {
-		const mesh = Zonohedron.object3D(initColors(), initZonohedronControls());
+		const zonohedron = new Zonohedron();
+		const mesh = zonohedron.mesh;
     state.scene.add( mesh );
 		cleanup.push(() => { state.scene.remove(mesh) })
 		return state.with({ mesh, geometryType: 'zonohedron' });
 }
 
 function addDodecahedron(state: State) {
-		const mesh = Dodecahedron.object3D(initColors(), initDodecahedronControls());
+		const dodecahedron = new Dodecahedron();
+		const mesh = dodecahedron.mesh;
     state.scene.add( mesh );
 		cleanup.push(() => { state.scene.remove(mesh) })
 		return state.with({ mesh, geometryType: 'dodecahedron' });
