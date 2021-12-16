@@ -9,35 +9,50 @@ export type ControlState = {
 		points: three.Vector3[];
 }
 
-function oddPolar(n: number): three.Vector3[] {
+function oddPolar(n: number, prismHeight: number): three.Vector3[] {
 		const top = [] as three.Vector3[];
 		for (let i = 0; i < n; ++i) {
 				const angle = 2 * Math.PI * i / n;
-				const point = new three.Vector3(Math.cos(angle), Math.sin(angle), 1);
+				const point = new three.Vector3(Math.cos(angle), Math.sin(angle), prismHeight);
 				top.push(point);
 		}
 		return top;
 }
 
-function evenPolar(n: number): three.Vector3[] {
+function evenPolar(n: number, prismHeight: number): three.Vector3[] {
 		const top = [] as three.Vector3[];
 		for (let i = 0; i < n; ++i) {
 				const angle = 2 * Math.PI * i / n;
-				const point = new three.Vector3(Math.cos(angle), Math.sin(angle), 1);
+				const point = new three.Vector3(Math.cos(angle), Math.sin(angle), prismHeight);
 				top.push(point);
 		}
 		return top;
 }
 
-function polarZonohedron(n: number): three.Vector3[] {
+function polarZonohedron(n: number, prismHeight: number): three.Vector3[] {
 		if (n & 1) {
-				return oddPolar(n);
+				return oddPolar(n, prismHeight);
 		}
 
-		return evenPolar(n);
+		return evenPolar(n, prismHeight);
 }
 
-export function initControls(): Rx.Observable<ControlState> {
+const polar =  true;
+
+function initControls(): Rx.Observable<ControlState> {
+		if (polar) {
+				const st = document.querySelector<HTMLInputElement>('#prismHeight');
+				if (st) {
+						return Rx.Observable
+								.fromEvent(st, 'input')
+								.map((event: Event) => parseFloat((event.target as HTMLInputElement).value))
+								.startWith(parseFloat(st.value))
+								.map(prismHeight => ({ points: polarZonohedron(9, prismHeight) }));
+				}
+
+				throw new Error("Can't find range sliders")
+		}
+
 		const root2over2 = 1.0/Math.sqrt(2);
 		const p1 = [
 				new three.Vector3(1, root2over2, 0),
@@ -57,8 +72,6 @@ export function initControls(): Rx.Observable<ControlState> {
 		]
 
 		const points = true ? p2 : p1;
-
-		// const points = polarZonohedron(5);
 
 		return Rx.Observable.from([{ points }]);
 }
@@ -111,6 +124,7 @@ export class Zonohedron {
 				this.controls.subscribe(({ points }) => {
 						let bitG = bitGenerator(points.length);
 
+						this.geometry.vertices = [];
 						for (let bits of bitG) {
 								let zero = new three.Vector3(0, 0, 0);
 								this.geometry.vertices.push(
@@ -151,8 +165,8 @@ export class Zonohedron {
 				const material = new three.MeshPhongMaterial({
 						vertexColors: true,
 						side: three.DoubleSide,
-						// transparent: true,
-						opacity: 0.9,
+						transparent: true,
+						opacity: 0.6,
 				});
 
 				this.mesh = new three.Mesh( this.geometry, material );
