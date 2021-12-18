@@ -160,3 +160,16 @@ export class Dodecahedron
 		}
 }
 
+export default function dodecahedron(scene: three.Scene): Rx.Observable<three.Object3D> {
+		return new Rx.Observable((subscriber: Rx.Subscriber<three.Object3D>) => {
+				const controls = document.getElementById('dodecahedronControls');
+				controls.setAttribute('style', 'display:block');
+				const dodecahedron = new Dodecahedron();
+				scene.add(dodecahedron.mesh);
+				subscriber.next(dodecahedron.mesh);
+				return function() {
+						scene.remove(dodecahedron.mesh);
+						controls.setAttribute('style', 'display:none');
+				}
+		})
+}

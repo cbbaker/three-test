@@ -1,15 +1,11 @@
 import * as Rx from 'rxjs-compat';
 
-export interface Controls {
-		objType: string;
-};
-
-export default function objectControls(
+export default function objectControls<T>(
 		objType: Rx.Observable<string>, 
-		controls: Record<string, Rx.Observable<Controls>>
-): Rx.Observable<Controls> {
+		controls: Record<string, Rx.Observable<T>>
+): Rx.Observable<T> {
 		let innerSub: Rx.Subscription;
-		return new Rx.Observable((subscriber: Rx.Observer<Controls>) => {
+		return new Rx.Observable((subscriber: Rx.Observer<T>) => {
 				console.log('outer subscribe', subscriber);
 				let outerSub: Rx.Subscription;
 				outerSub = objType.subscribe({
@@ -24,7 +20,7 @@ export default function objectControls(
 								if (obs) {
 										console.log('inner subscribe');
 										innerSub = obs.subscribe({
-												next: (value: Controls) => {
+												next: (value: T) => {
 														console.log('inner next', subscriber, value);
 														subscriber.next(value);
 												},

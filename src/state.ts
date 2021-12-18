@@ -2,9 +2,10 @@ import * as three from 'three';
 import * as Rx from 'rxjs-compat';
 import * as Immutable from 'immutable';
 import input, { Input } from './input';
-import { Dodecahedron } from './dodecahedron';
-import { Zonohedron } from './zonohedron';
+import dodecahedron from './dodecahedron';
+import zonohedron from './zonohedron';
 import clock, { Clock } from './clock';
+import objectControls from './objectControls';
 import { AnimatedOrientation } from './AnimatedOrientation';
 
 export type StateParams = {
@@ -65,9 +66,14 @@ export const initialState = new State({
 		scene: new three.Scene(),
 });
 
-const events = clock.withLatestFrom(input);
-
 type Updater = (state: State) => State;
+
+const mesh = objectControls(input.pluck('geometry'), {
+		dodecahedron: dodecahedron(initialState.scene),
+		zonohedron: zonohedron(initialState.scene),
+})
+
+const events = clock.withLatestFrom(input).withLatestFrom(mesh);
 
 type Cleanup = () => void;
 let cleanup = [] as Cleanup[];
@@ -77,36 +83,9 @@ function doCleanup() {
 		cleanup = [];
 }
   
-function addZonohedron(state: State) {
-		const zonohedron = new Zonohedron();
-		const mesh = zonohedron.mesh;
-    state.scene.add( mesh );
-		cleanup.push(() => { state.scene.remove(mesh) })
-		return state.with({ mesh, geometryType: 'zonohedron' });
-}
-
-function addDodecahedron(state: State) {
-		const dodecahedron = new Dodecahedron();
-		const mesh = dodecahedron.mesh;
-    state.scene.add( mesh );
-		cleanup.push(() => { state.scene.remove(mesh) })
-		return state.with({ mesh, geometryType: 'dodecahedron' });
-}
-
-const updater = events.map(([clock, input]: [Clock, Input]) => (state: State) => {
+const updater = events.map(([[clock, input], mesh]: [[Clock, Input], three.Object3D]) => (state: State) => {
 		const object = state.object.process(clock, input);
-		const newState = state.with({ object, cameraZ: input.cameraZ });
-		const geometryType = input.geometry;
-		if (newState.geometryType !== geometryType) {
-				doCleanup();
-				switch (geometryType) {
-						case 'dodecahedron':
-								return addDodecahedron(state);
-						case 'zonohedron':
-								return addZonohedron(state);
-				}
-		}
-		return newState;
+		return state.with({ object, cameraZ: input.cameraZ, mesh });
 });
 
 const state = Rx.Observable

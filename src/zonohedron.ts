@@ -173,3 +173,16 @@ export class Zonohedron {
 		}
 }
 
+export default function zonohedron(scene: three.Scene): Rx.Observable<three.Object3D> {
+		return new Rx.Observable((subscriber: Rx.Subscriber<three.Object3D>) => {
+				const controls = document.getElementById('zonohedronControls');
+				controls.setAttribute('style', 'display:block');
+				const zonohedron = new Zonohedron();
+				scene.add(zonohedron.mesh);
+				subscriber.next(zonohedron.mesh);
+				return function() {
+						scene.remove(zonohedron.mesh);
+						controls.setAttribute('style', 'display:none');
+				}
+		})
+}
