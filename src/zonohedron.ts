@@ -47,7 +47,7 @@ function initControls(): Rx.Observable<ControlState> {
 								.fromEvent(st, 'input')
 								.map((event: Event) => parseFloat((event.target as HTMLInputElement).value))
 								.startWith(parseFloat(st.value))
-								.map(prismHeight => ({ points: polarZonohedron(9, prismHeight) }));
+								.map(prismHeight => ({ points: polarZonohedron(7, prismHeight) }));
 				}
 
 				throw new Error("Can't find range sliders")
@@ -121,6 +121,7 @@ export class Zonohedron {
 		computeMesh() {
 				this.geometry = new three.Geometry();
 
+				let numPoints: number;
 				this.controls.subscribe(({ points }) => {
 						let bitG = bitGenerator(points.length);
 
@@ -140,19 +141,22 @@ export class Zonohedron {
 						const center = this.geometry.vertices[this.geometry.vertices.length - 1].clone().multiplyScalar(0.5);
 						this.geometry.vertices.forEach(v => v.sub(center));
 
-						for (let i = 0; i < points.length - 1; i++) {
-								for (let j = i+1; j < points.length; j++) {
-										let indices = [] as number[];
-										for (let k = 0; k < points.length; k++) {
-												if (k !== i && k !== j) {
-														indices.push((1<<k));
+						if (numPoints !== points.length) {
+								numPoints = points.length;
+								for (let i = 0; i < points.length - 1; i++) {
+										for (let j = i+1; j < points.length; j++) {
+												let indices = [] as number[];
+												for (let k = 0; k < points.length; k++) {
+														if (k !== i && k !== j) {
+																indices.push((1<<k));
+														}
 												}
-										}
-										let innerBitG = bitGenerator(indices.length);
-										let vertices = [0, (1<<i), (1<<i) + (1<<j), (1<<j)];
-										for (let innerBits of innerBitG) {
-												let offset = innerBits.reduce((total, bit, index) => bit === 1 ? total + indices[index] : total, 0);
-												this.addFaces(vertices.map(v => v+offset) as [number, number, number, number]);
+												let innerBitG = bitGenerator(indices.length);
+												let vertices = [0, (1<<i), (1<<i) + (1<<j), (1<<j)];
+												for (let innerBits of innerBitG) {
+														let offset = innerBits.reduce((total, bit, index) => bit === 1 ? total + indices[index] : total, 0);
+														this.addFaces(vertices.map(v => v+offset) as [number, number, number, number]);
+												}
 										}
 								}
 						}
@@ -160,12 +164,13 @@ export class Zonohedron {
 
 						this.geometry.computeBoundingSphere();
 						this.geometry.computeFaceNormals();
+						this.geometry.elementsNeedUpdate = true;
 				});
 
 				const material = new three.MeshPhongMaterial({
 						vertexColors: true,
 						side: three.DoubleSide,
-						transparent: true,
+						// transparent: true,
 						opacity: 0.6,
 				});
 
