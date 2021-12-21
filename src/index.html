@@ -17,18 +17,7 @@
 							Controls
 						</div>
 						<div class="card-body">
-							<form>
-								<div class="form-group">
-									<h4>Geometry</h4>
-									<div class="form-check form-check-inline">
-										<input class="form-check-input" type="radio" name="geometryOptions" id="dodecahedronOption" value="dodecahedron">
-										<label class="form-check-label" for="dodecahedronOption">Dodecahedron</label>
-									</div>
-									<div class="form-check form-check-inline">
-										<input class="form-check-input" type="radio" name="geometryOptions" id="zonohedronOption" value="zonohedron" checked>
-										<label class="form-check-label" for="zonohedronOption">Zonohedron</label>
-									</div>
-								</div>
+							<form id='controls'>
 								<div class="form-group">
 									<h4>Saturation</h4>
 									<label for="saturationAverage">Average</label>
@@ -68,13 +57,22 @@
 												 min="-1" max="4" step="0.02" value="2"
 												 />
 								</div>
-								<div class="form-group" id='zonohedronControls' style='display:block'>
+								<div class="form-group" id='zonohedronControls' style='display:none'>
 									<h4>Prism</h4>
 									<label for="prismHeight">height</label>
 									<input type="range" class="form-control-range"
 												 id="prismHeight"
 												 name="prismHeight"
 												 min="0.05" max="2" step="0.05" value="1"
+												 />
+								</div>
+								<div class="form-group" id='icosahedronControls' style='display:block'>
+									<h4>Interpolate</h4>
+									<label for="interpolate">height</label>
+									<input type="range" class="form-control-range"
+												 id="interpolate"
+												 name="interpolate"
+												 min="0.5" max="1" step="0.01" value="0.62"
 												 />
 								</div>
 							</form>

@@ -4,13 +4,14 @@ import * as Immutable from 'immutable';
 import input, { Input } from './input';
 import dodecahedron from './dodecahedron';
 import zonohedron from './zonohedron';
+import icosahedron from './icosahedron';
 import clock, { Clock } from './clock';
 import objectControls from './objectControls';
 import { AnimatedOrientation } from './AnimatedOrientation';
 
 export type StateParams = {
 		object?: AnimatedOrientation;
-		geometryType?: 'dodecahedron' | 'zonohedron';
+		geometryType?: 'dodecahedron' | 'zonohedron' | 'icosahedron';
 		scene?: three.Scene;
 		mesh?: three.Object3D;
 		speed?: number;
@@ -68,9 +69,12 @@ export const initialState = new State({
 
 type Updater = (state: State) => State;
 
-const mesh = objectControls(input.pluck('geometry'), {
+const geometry = input.pluck('geometry') as Rx.Observable<string>;
+
+const mesh = objectControls(geometry.distinctUntilChanged(), {
 		dodecahedron: dodecahedron(initialState.scene),
 		zonohedron: zonohedron(initialState.scene),
+		icosahedron: icosahedron(initialState.scene),
 })
 
 const events = clock.withLatestFrom(input).withLatestFrom(mesh);
