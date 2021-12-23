@@ -1,76 +1,28 @@
 import * as three from 'three';
 import * as Rx from 'rxjs-compat';
+import coldToHot from './coldToHot';
+import optionPicker, { Option } from './optionPicker'
 
 export type Input = {
-		geometry: 'dodecahedron' | 'zonohedron' | 'icosahedron';
+		geometry: string;
 		speed: number;
 		cameraZ: number;
 };
 
-function createGeometryPicker(options: string[]): { cleanup: () => void, inputs: HTMLInputElement[] } {
+
+function geometry() {
 		const controls = document.getElementById('controls');
 		if (!controls) {
 				throw new Error("can't find controls");
 		}
 
-		const picker = document.createElement('div')
-		picker.setAttribute('class', 'form-group');
+		const options = [
+				{ id: 'dodecahedron', title: 'Dodecahedron' },
+				{ id: 'icosahedron', title: 'Icosahedron' },
+				{ id: 'zonohedron', title: 'Zonohedron' },
+		];
 
-		const header = document.createElement('h4');
-		header.appendChild(document.createTextNode('Geometry'));
-		picker.appendChild(header);
-
-		const inputs = options.map((option: string) => {
-				const container = document.createElement('div');
-				container.setAttribute('class', 'form-check form-check-inline');
-
-				const input = document.createElement('input');
-				input.setAttribute('class', 'form-check-input');
-				input.setAttribute('type', 'radio');
-				input.setAttribute('name', 'geometryOptions');
-				input.setAttribute('id', `${option}Option`);
-				input.setAttribute('value', option);
-				input.setAttribute('checked', '');
-				container.appendChild(input);
-
-				const label = document.createElement('label');
-				label.setAttribute('class', 'form-check-label');
-				label.setAttribute('for', `${option}Option`);
-				label.appendChild(document.createTextNode(option));
-				container.appendChild(label);
-
-				picker.appendChild(container);
-
-				return input;
-		});
-
-		controls.appendChild(picker);
-
-		return { 
-				cleanup: () => {
-						controls.removeChild(picker);
-				}, 
-				inputs,
-		};
-}
-
-function geometry() {
-		let picker: { cleanup: () => void, inputs: HTMLInputElement[] };
-		return new Rx.Observable((subscriber: Rx.Subscriber<string>) => {
-				if (!picker) {
-						picker = createGeometryPicker(['dodecahedron', 'zonohedron', 'icosahedron']);
-				}
-				const { cleanup, inputs } = picker;
-
-				const inputObservables = inputs.map((input: HTMLInputElement) => Rx.Observable.fromEvent(input, 'change'));
-				const geometry = Rx.Observable
-						.merge.apply(null, inputObservables)
-						.map((event: InputEvent) => (event.target as HTMLInputElement).value)
-						.startWith('icosahedron');
-				geometry.subscribe(subscriber);
-
-				return cleanup;
-		})
+		return coldToHot(optionPicker(controls, 'geometry', 'Geometry', options, 'zonohedron'));
 };
 
 
