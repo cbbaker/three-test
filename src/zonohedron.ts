@@ -1,9 +1,7 @@
 import { Observable, Subscriber, Subscription } from 'rxjs-compat';
 import * as three from 'three';
 import bitGenerator from './bitGenerator';
-import randomColors, { ColorState } from './randomColors';
-import randNormal from './randNormal';
-import { NormalDist } from './normalDistControl';
+import randomColors, { ColorState, computeColor } from './randomColors';
 import coldToHot from './coldToHot';
 import formGroup from './formGroup';
 import slider from './slider';
@@ -47,12 +45,10 @@ function polarZonohedron(n: number, prismHeight: number): three.Vector3[] {
 const polar = true;
 
 class Controls {
-		parent: Node;
 		colorState: Observable<ColorState>;
 		controlState: Observable<ControlState>;
 
 		constructor(parent: Node) {
-				this.parent = parent;
 				this.colorState = coldToHot(randomColors(parent));
 				this.controlState = coldToHot(prismHeightControl(parent)).map((prismHeight) => this.computePoints(prismHeight));
 		}
@@ -101,16 +97,8 @@ export class Zonohedron {
 		}
 
 
-		computeColor(saturation: NormalDist, luminosity: NormalDist): three.Color {
-				const sat = randNormal(saturation.mu, saturation.sigma);
-				const lum = randNormal(luminosity.mu, luminosity.sigma);
-				const clamp = (val: number) => Math.max(Math.min(val, 1), 0);
-				
-				return new three.Color().setHSL(Math.random(), clamp(sat), clamp(lum));
-		}
-
-		setFaceColor(start: number, { saturation, luminosity }: ColorState): void {
-				const color = this.computeColor(saturation, luminosity);
+		setFaceColor(start: number, colorState: ColorState): void {
+				const color = computeColor(colorState);
 				this.geometry.faces[start+0].color = color;
 				this.geometry.faces[start+1].color = color;
 		}

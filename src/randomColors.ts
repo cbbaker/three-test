@@ -1,5 +1,6 @@
 import { Observable, Subscriber } from 'rxjs-compat';
 import * as three from 'three';
+import randNormal from './randNormal';
 import normalDistControl, { NormalDist } from './normalDistControl';
 
 export type ColorState = {
@@ -34,3 +35,12 @@ export default function randomColors(parent: Node): Observable<ColorState> {
 				}
 		})
 }
+
+export function computeColor({ saturation, luminosity }: ColorState): three.Color {
+		const sat = randNormal(saturation.mu, saturation.sigma);
+		const lum = randNormal(luminosity.mu, luminosity.sigma);
+		const clamp = (val: number) => Math.max(Math.min(val, 1), 0);
+
+		return new three.Color().setHSL(Math.random(), clamp(sat), clamp(lum));
+}
+

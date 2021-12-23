@@ -1,6 +1,6 @@
 import { Observable, Subscriber, Subscription } from 'rxjs-compat';
 import * as three from 'three';
-import randomColors, { ColorState } from './randomColors';
+import randomColors, { ColorState, computeColor } from './randomColors';
 import randNormal from './randNormal';
 import { NormalDist } from './normalDistControl';
 import coldToHot from './coldToHot';
@@ -42,16 +42,8 @@ export class Icosahedron
 				this.computeMesh();
 		}
 
-		computeColor(saturation: NormalDist, luminosity: NormalDist): three.Color {
-				const sat = randNormal(saturation.mu, saturation.sigma);
-				const lum = randNormal(luminosity.mu, luminosity.sigma);
-				const clamp = (val: number) => Math.max(Math.min(val, 1), 0);
-				
-				return new three.Color().setHSL(Math.random(), clamp(sat), clamp(lum));
-		}
-
-		setFaceColor(start: number, { saturation, luminosity }: ColorState): void {
-				const color = this.computeColor(saturation, luminosity);
+		setFaceColor(start: number, colorState: ColorState): void {
+				const color = computeColor(colorState);
 				this.geometry.faces[start].color = color;
 		}
 
