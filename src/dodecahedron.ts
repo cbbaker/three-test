@@ -4,6 +4,7 @@ import randomColors, { ColorState } from './randomColors';
 import randNormal from './randNormal';
 import { NormalDist } from './normalDistControl';
 import coldToHot from './coldToHot';
+import formGroup from './formGroup';
 import slider from './slider';
 
 type ControlState = {
@@ -11,21 +12,7 @@ type ControlState = {
 }
 
 function stellationControl(parent: Node): Observable<number> {
-		return new Observable((subscriber: Subscriber<number>) => {
-				const group = document.createElement('div');
-				group.setAttribute('class', 'form-group');
-				const header = document.createElement('h4');
-				header.appendChild(document.createTextNode('Stellation'));
-				group.appendChild(header);
-				parent.appendChild(group);
-
-				const subscription = slider(group, 'stellationSize', 'Size', -1, 4, 0.02, 1)
-						.subscribe(subscriber);
-				return function() {
-						subscription.unsubscribe();
-						parent.removeChild(group);
-				}
-		});
+		return formGroup(parent, 'Stellation', (parent: Node) => slider(parent, 'stellationSize', 'Size', -1, 4, 0.02, 1));
 }
 
 class Controls {

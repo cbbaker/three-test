@@ -38,8 +38,8 @@ class Slider {
 		}
 
 		cleanup() {
-				this.parent.removeChild(this.label);
-				this.parent.removeChild(this.input);
+				this.label.remove();
+				this.input.remove();
 		}
 }
 

@@ -4,6 +4,7 @@ import randomColors, { ColorState } from './randomColors';
 import randNormal from './randNormal';
 import { NormalDist } from './normalDistControl';
 import coldToHot from './coldToHot';
+import formGroup from './formGroup';
 import slider from './slider';
 
 type ControlState = {
@@ -11,21 +12,7 @@ type ControlState = {
 }
 
 function interpolateControl(parent: Node): Observable<number> {
-		return new Observable((subscriber: Subscriber<number>) => {
-				const group = document.createElement('div');
-				group.setAttribute('class', 'form-group');
-				const header = document.createElement('h4');
-				header.appendChild(document.createTextNode('Interpolate'));
-				group.appendChild(header);
-				parent.appendChild(group);
-
-				const subscription = slider(group, 'interpolateSize', 'Size', 0.5, 1, 0.01, 0.62)
-						.subscribe(subscriber);
-				return function() {
-						subscription.unsubscribe();
-						parent.removeChild(group);
-				};
-		});
+		return formGroup(parent, 'Interpolate', (parent: Node) => slider(parent, 'interpolateSize', 'Size', 0.5, 1, 0.01, 0.62));
 }
 
 class Controls {

@@ -5,6 +5,7 @@ import randomColors, { ColorState } from './randomColors';
 import randNormal from './randNormal';
 import { NormalDist } from './normalDistControl';
 import coldToHot from './coldToHot';
+import formGroup from './formGroup';
 import slider from './slider';
 
 export type ControlState = {
@@ -12,21 +13,7 @@ export type ControlState = {
 }
 
 function prismHeightControl(parent: Node): Observable<number> {
-		return new Observable((subscriber: Subscriber<number>) => {
-				const group = document.createElement('div');
-				group.setAttribute('class', 'form-group');
-				const header = document.createElement('h4');
-				header.appendChild(document.createTextNode('Prism'));
-				group.appendChild(header);
-				parent.appendChild(group);
-
-				const subscription = slider(group, 'prismHeight', 'Height', 0.5, 1, 0.01, 0.62)
-						.subscribe(subscriber);
-				return function() {
-						subscription.unsubscribe();
-						parent.removeChild(group);
-				};
-		});
+		return formGroup(parent, 'Prism', (parent: Node) => slider(parent, 'prismHeight', 'Height', 0.5, 1, 0.01, 0.62));
 }
 
 function oddPolar(n: number, prismHeight: number): three.Vector3[] {
