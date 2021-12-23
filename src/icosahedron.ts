@@ -83,9 +83,10 @@ export class Icosahedron
 				this.subscriptions.push(subscription);
 		}
 
-		computeVertices(interpolate: number, baseVertices: three.Vector3[]) {
+		computeVertices(interpolate: number) {
 				this.geometry.vertices = [];
-				const a = interpolate, b = 1 - interpolate;
+				const scale = 3.0
+				const a = interpolate * scale, b = (1 - interpolate) * scale;
 				// x -> y
 				this.geometry.vertices.push(new three.Vector3( b,  a, 0)); //  0
 				this.geometry.vertices.push(new three.Vector3( b, -a, 0)); //  1 
@@ -106,19 +107,10 @@ export class Icosahedron
 		computeMesh() {
 				this.geometry = new three.Geometry();
 
-				const baseVertices = [
-						new three.Vector3(  1,  0,  0),        //  0
-						new three.Vector3( -1,  0,  0),        //  1
-						new three.Vector3(  0,  1,  0),        //  2
-						new three.Vector3(  0, -1,  0),        //  3
-						new three.Vector3(  0,  0,  1),        //  4
-						new three.Vector3(  0,  0, -1),        //  5
-				];
-
 				const phi = 0.5 * (1 + Math.sqrt(5));
 				const invPhi = 1.0 / phi;
 
-				this.computeVertices(invPhi, baseVertices);
+				this.computeVertices(invPhi);
 
 				// equilaterals
 				this.addFace([ 0,  4,  8]); // +x, +y, +z
@@ -149,7 +141,7 @@ export class Icosahedron
 				this.addFace([11,  5,  7])
 
 				const subscription = this.controls.subscribe(({ interpolate }) => {
-						this.computeVertices(interpolate, baseVertices);
+						this.computeVertices(interpolate);
 						this.geometry.computeBoundingSphere();
 						this.geometry.computeFaceNormals();
 						this.geometry.elementsNeedUpdate = true;

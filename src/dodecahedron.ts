@@ -19,7 +19,7 @@ function stellationControl(parent: Node): Observable<number> {
 				group.appendChild(header);
 				parent.appendChild(group);
 
-				const subscription = slider(group, 'stellationSize', 'Size', -1, 4, 0.02, 1.61)
+				const subscription = slider(group, 'stellationSize', 'Size', -1, 4, 0.02, 1)
 						.subscribe(subscriber);
 				return function() {
 						subscription.unsubscribe();
