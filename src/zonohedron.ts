@@ -1,12 +1,32 @@
-import * as Rx from 'rxjs-compat';
+import { Observable, Subscriber, Subscription } from 'rxjs-compat';
 import * as three from 'three';
 import bitGenerator from './bitGenerator';
+import randomColors, { ColorState } from './randomColors';
 import randNormal from './randNormal';
 import { NormalDist } from './normalDistControl';
-import randomColors, { ColorState } from './randomColors';
+import coldToHot from './coldToHot';
+import slider from './slider';
 
 export type ControlState = {
 		points: three.Vector3[];
+}
+
+function prismHeightControl(parent: Node): Observable<number> {
+		return new Observable((subscriber: Subscriber<number>) => {
+				const group = document.createElement('div');
+				group.setAttribute('class', 'form-group');
+				const header = document.createElement('h4');
+				header.appendChild(document.createTextNode('Prism'));
+				group.appendChild(header);
+				parent.appendChild(group);
+
+				const subscription = slider(group, 'prismHeight', 'Height', 0.5, 1, 0.01, 0.62)
+						.subscribe(subscriber);
+				return function() {
+						subscription.unsubscribe();
+						parent.removeChild(group);
+				};
+		});
 }
 
 function oddPolar(n: number, prismHeight: number): three.Vector3[] {
@@ -37,55 +57,59 @@ function polarZonohedron(n: number, prismHeight: number): three.Vector3[] {
 		return evenPolar(n, prismHeight);
 }
 
-const polar =  true;
+const polar = true;
 
-function initControls(): Rx.Observable<ControlState> {
-		if (polar) {
-				const st = document.querySelector<HTMLInputElement>('#prismHeight');
-				if (st) {
-						return Rx.Observable
-								.fromEvent(st, 'input')
-								.map((event: Event) => parseFloat((event.target as HTMLInputElement).value))
-								.startWith(parseFloat(st.value))
-								.map(prismHeight => ({ points: polarZonohedron(7, prismHeight) }));
-				}
+class Controls {
+		parent: Node;
+		colorState: Observable<ColorState>;
+		controlState: Observable<ControlState>;
 
-				throw new Error("Can't find range sliders")
+		constructor(parent: Node) {
+				this.parent = parent;
+				this.colorState = coldToHot(randomColors(parent));
+				this.controlState = coldToHot(prismHeightControl(parent)).map((prismHeight) => this.computePoints(prismHeight));
 		}
 
-		const root2over2 = 1.0/Math.sqrt(2);
-		const p1 = [
-				new three.Vector3(1, root2over2, 0),
-				new three.Vector3(1, -root2over2, 0),
-				new three.Vector3(0,  root2over2, 1),
-				new three.Vector3(0, -root2over2, 1),
-		]
+		computePoints(prismHeight: number) {
+				if (polar) {
+						return { points: polarZonohedron(7, prismHeight) }
+				}
 
-		const phi = (1 + Math.sqrt(5)) / 2;
-		const p2 = [
-				new three.Vector3(0, 1, phi),
-				new three.Vector3(0, 1, -phi),
-				new three.Vector3(1, phi, 0),
-				new three.Vector3(1, -phi, 0),
-				new three.Vector3(phi, 0, 1),
-				new three.Vector3(-phi, 0, 1),
-		]
+				const root2over2 = 1.0/Math.sqrt(2);
+				const p1 = [
+						new three.Vector3(1, root2over2, 0),
+						new three.Vector3(1, -root2over2, 0),
+						new three.Vector3(0,  root2over2, 1),
+						new three.Vector3(0, -root2over2, 1),
+				]
 
-		const points = true ? p2 : p1;
+				const phi = (1 + Math.sqrt(5)) / 2;
+				const p2 = [
+						new three.Vector3(0, 1, phi),
+						new three.Vector3(0, 1, -phi),
+						new three.Vector3(1, phi, 0),
+						new three.Vector3(1, -phi, 0),
+						new three.Vector3(phi, 0, 1),
+						new three.Vector3(-phi, 0, 1),
+				]
 
-		return Rx.Observable.from([{ points }]);
+				const points = true ? p2 : p1;
+
+				return { points };
+		}
 }
-
 
 export class Zonohedron {
 		mesh: three.Object3D;
 		geometry: three.Geometry;
-		colors: Rx.Observable<ColorState>;
-		controls: Rx.Observable<ControlState>;
+		controls: Observable<ControlState>;
+		colors: Observable<ColorState>;
+		subscriptions: Subscription[];
 
-		constructor() {
-				this.colors = randomColors();
-				this.controls = initControls();
+		constructor(controls: Controls) {
+				this.subscriptions = [];
+				this.controls = controls.controlState;
+				this.colors = controls.colorState;
 				this.computeMesh();
 		}
 
@@ -112,17 +136,19 @@ export class Zonohedron {
 				this.geometry.faces.push(new three.Face3(i1, i2, i3));
 				this.geometry.faces.push(new three.Face3(i1, i3, i4));
 
-				this.colors.subscribe((colorState: ColorState) => {
+				const subscription = this.colors.subscribe((colorState: ColorState) => {
 						this.setFaceColor(start, colorState);
 						this.geometry.elementsNeedUpdate = true;
 				});
+
+				this.subscriptions.push(subscription);
 		}
 
 		computeMesh() {
 				this.geometry = new three.Geometry();
 
 				let numPoints: number;
-				this.controls.subscribe(({ points }) => {
+				const subscription = this.controls.subscribe(({ points }) => {
 						let bitG = bitGenerator(points.length);
 
 						this.geometry.vertices = [];
@@ -167,6 +193,8 @@ export class Zonohedron {
 						this.geometry.elementsNeedUpdate = true;
 				});
 
+				this.subscriptions.push(subscription);
+
 				const material = new three.MeshPhongMaterial({
 						vertexColors: true,
 						side: three.DoubleSide,
@@ -176,18 +204,30 @@ export class Zonohedron {
 
 				this.mesh = new three.Mesh( this.geometry, material );
 		}
+
+		cleanup() {
+				this.subscriptions.forEach((subscription: Subscription) => {
+						subscription.unsubscribe();
+				});
+				this.subscriptions = [];
+		}
 }
 
-export default function zonohedron(scene: three.Scene): Rx.Observable<three.Object3D> {
-		return new Rx.Observable((subscriber: Rx.Subscriber<three.Object3D>) => {
-				const controls = document.getElementById('zonohedronControls');
-				controls.setAttribute('style', 'display:block');
-				const zonohedron = new Zonohedron();
+
+export default function zonohedron(scene: three.Scene): Observable<three.Object3D> {
+		return new Observable((subscriber: Subscriber<three.Object3D>) => {
+				const controlNode = document.getElementById('controls');
+				if (!controlNode) {
+						throw new Error("can't find controls");
+				}
+
+				const controls = new Controls(controlNode);
+				const zonohedron = new Zonohedron(controls);
 				scene.add(zonohedron.mesh);
 				subscriber.next(zonohedron.mesh);
 				return function() {
 						scene.remove(zonohedron.mesh);
-						controls.setAttribute('style', 'display:none');
+						zonohedron.cleanup();
 				}
 		})
 }

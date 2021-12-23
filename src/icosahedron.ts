@@ -1,40 +1,58 @@
-import * as Rx from 'rxjs-compat';
+import { Observable, Subscriber, Subscription } from 'rxjs-compat';
 import * as three from 'three';
-import * as Immutable from 'immutable';
-import QuaternionSpline from './quaternionSpline';
 import randomColors, { ColorState } from './randomColors';
-import { Clock } from './clock';
 import randNormal from './randNormal';
 import { NormalDist } from './normalDistControl';
+import coldToHot from './coldToHot';
+import slider from './slider';
 
 type ControlState = {
 		interpolate: number;
+}
+
+function interpolateControl(parent: Node): Observable<number> {
+		return new Observable((subscriber: Subscriber<number>) => {
+				const group = document.createElement('div');
+				group.setAttribute('class', 'form-group');
+				const header = document.createElement('h4');
+				header.appendChild(document.createTextNode('Interpolate'));
+				group.appendChild(header);
+				parent.appendChild(group);
+
+				const subscription = slider(group, 'interpolateSize', 'Size', 0.5, 1, 0.01, 0.62)
+						.subscribe(subscriber);
+				return function() {
+						subscription.unsubscribe();
+						parent.removeChild(group);
+				};
+		});
+}
+
+class Controls {
+		parent: Node;
+		colorState: Observable<ColorState>;
+		controlState: Observable<ControlState>;
+
+		constructor(parent: Node) {
+				this.parent = parent;
+				this.colorState = coldToHot(randomColors(parent));
+				this.controlState = coldToHot(interpolateControl(parent)).map(interpolate => ({ interpolate }));
+		}
 }
 
 export class Icosahedron
 {
 		mesh: three.Object3D;
 		geometry: three.Geometry;
-		controls: Rx.Observable<ControlState>;
-		colors: Rx.Observable<ColorState>;
+		controls: Observable<ControlState>;
+		colors: Observable<ColorState>;
+		subscriptions: Subscription[];
 
-		constructor() {
-				this.controls = this.initControls();
-				this.colors = randomColors();
+		constructor(controls: Controls) {
+				this.subscriptions = [];
+				this.controls = controls.controlState;
+				this.colors = controls.colorState;
 				this.computeMesh();
-		}
-
-		initControls(): Rx.Observable<ControlState> {
-				const st = document.querySelector<HTMLInputElement>('#interpolate');
-				if (st) {
-						return Rx.Observable
-								.fromEvent(st, 'input')
-								.map((event: Event) => parseFloat((event.target as HTMLInputElement).value))
-								.startWith(parseFloat(st.value))
-								.map(interpolate => ({ interpolate }));
-				}
-
-				throw new Error("Can't find range sliders")
 		}
 
 		computeColor(saturation: NormalDist, luminosity: NormalDist): three.Color {
@@ -57,10 +75,12 @@ export class Icosahedron
 
 				this.geometry.faces.push(new three.Face3(i1, i2, i3));
 
-				this.colors.subscribe((colorState: ColorState) => {
+				const subscription = this.colors.subscribe((colorState: ColorState) => {
 						this.setFaceColor(start, colorState)
 						this.geometry.elementsNeedUpdate = true;
 				});
+
+				this.subscriptions.push(subscription);
 		}
 
 		computeVertices(interpolate: number, baseVertices: three.Vector3[]) {
@@ -128,12 +148,14 @@ export class Icosahedron
 				this.addFace([10,  7,  5])
 				this.addFace([11,  5,  7])
 
-				this.controls.subscribe(({ interpolate }) => {
+				const subscription = this.controls.subscribe(({ interpolate }) => {
 						this.computeVertices(interpolate, baseVertices);
 						this.geometry.computeBoundingSphere();
 						this.geometry.computeFaceNormals();
 						this.geometry.elementsNeedUpdate = true;
 				});
+
+				this.subscriptions.push(subscription);
 
 				const material = new three.MeshPhongMaterial({
 						vertexColors: true,
@@ -141,18 +163,30 @@ export class Icosahedron
 
 				this.mesh = new three.Mesh( this.geometry, material );
 		}
+
+		cleanup() {
+				this.subscriptions.forEach((subscription: Subscription) => {
+						subscription.unsubscribe();
+				});
+				this.subscriptions = [];
+		}
 }
 
-export default function icosahedron(scene: three.Scene): Rx.Observable<three.Object3D> {
-		return new Rx.Observable((subscriber: Rx.Subscriber<three.Object3D>) => {
-				const controls = document.getElementById('icosahedronControls');
-				controls.setAttribute('style', 'display:block');
-				const icosahedron = new Icosahedron();
+
+export default function icosahedron(scene: three.Scene): Observable<three.Object3D> {
+		return new Observable((subscriber: Subscriber<three.Object3D>) => {
+				const controlNode = document.getElementById('controls');
+				if (!controlNode) {
+						throw new Error("can't find controls");
+				}
+
+				const controls = new Controls(controlNode);
+				const icosahedron = new Icosahedron(controls);
 				scene.add(icosahedron.mesh);
 				subscriber.next(icosahedron.mesh);
 				return function() {
 						scene.remove(icosahedron.mesh);
-						controls.setAttribute('style', 'display:none');
+						icosahedron.cleanup();
 				}
 		})
 }

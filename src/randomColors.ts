@@ -1,4 +1,4 @@
-import * as Rx from 'rxjs-compat';
+import { Observable, Subscriber } from 'rxjs-compat';
 import * as three from 'three';
 import normalDistControl, { NormalDist } from './normalDistControl';
 
@@ -7,16 +7,30 @@ export type ColorState = {
 		luminosity: NormalDist;
 };
 
-export default function randomColors(): Rx.Observable<ColorState> {
-		const sa = document.querySelector<HTMLInputElement>('#saturationAverage');
-		const ss = document.querySelector<HTMLInputElement>('#saturationStdDev');
-		const saturation = normalDistControl(sa, ss);
+class Control {
+		parent: Node;
+		saturation: Observable<NormalDist>;
+		luminosity: Observable<NormalDist>;
 
-		const la = document.querySelector<HTMLInputElement>('#luminosityAverage');
-		const ls = document.querySelector<HTMLInputElement>('#luminosityStdDev');
-		const luminosity = normalDistControl(la, ls);
+		constructor(parent: Node) {
+				this.parent = parent;
+				this.saturation = normalDistControl(parent, 'Saturation');
+				this.luminosity = normalDistControl(parent, 'Luminosity');
+		}
 
-		return Rx.Observable
-				.combineLatest(saturation, luminosity)
-				.map(([saturation, luminosity]) => ({saturation, luminosity,}));
+		get observable() {
+				return Observable
+				.combineLatest(this.saturation, this.luminosity)
+				.map(([saturation, luminosity]) => ({ saturation, luminosity }));
+		}
+}
+
+export default function randomColors(parent: Node): Observable<ColorState> {
+		return new Observable((subscriber: Subscriber<ColorState>) => {
+				const control = new Control(parent);
+				const subscription = control.observable.subscribe(subscriber);
+				return function() {
+						subscription.unsubscribe();
+				}
+		})
 }

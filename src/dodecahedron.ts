@@ -1,40 +1,58 @@
-import * as Rx from 'rxjs-compat';
+import { Observable, Subscriber, Subscription } from 'rxjs-compat';
 import * as three from 'three';
-import * as Immutable from 'immutable';
-import QuaternionSpline from './quaternionSpline';
 import randomColors, { ColorState } from './randomColors';
-import { Clock } from './clock';
 import randNormal from './randNormal';
 import { NormalDist } from './normalDistControl';
+import coldToHot from './coldToHot';
+import slider from './slider';
 
 type ControlState = {
 		stellationSize: number;
+}
+
+function stellationControl(parent: Node): Observable<number> {
+		return new Observable((subscriber: Subscriber<number>) => {
+				const group = document.createElement('div');
+				group.setAttribute('class', 'form-group');
+				const header = document.createElement('h4');
+				header.appendChild(document.createTextNode('Stellation'));
+				group.appendChild(header);
+				parent.appendChild(group);
+
+				const subscription = slider(group, 'stellationSize', 'Size', -1, 4, 0.02, 1.61)
+						.subscribe(subscriber);
+				return function() {
+						subscription.unsubscribe();
+						parent.removeChild(group);
+				}
+		});
+}
+
+class Controls {
+		parent: Node;
+		colorState: Observable<ColorState>;
+		controlState: Observable<ControlState>;
+
+		constructor(parent: Node) {
+				this.parent = parent;
+				this.colorState = coldToHot(randomColors(parent));
+				this.controlState = coldToHot(stellationControl(parent)).map(stellationSize => ({ stellationSize }));
+		}
 }
 
 export class Dodecahedron
 {
 		mesh: three.Object3D;
 		geometry: three.Geometry;
-		controls: Rx.Observable<ControlState>;
-		colors: Rx.Observable<ColorState>;
+		controls: Observable<ControlState>;
+		colors: Observable<ColorState>;
+		subscriptions: Subscription[];
 
-		constructor() {
-				this.controls = this.initControls();
-				this.colors = randomColors();
+		constructor(controls: Controls) {
+				this.subscriptions = [];
+				this.controls = controls.controlState;
+				this.colors = controls.colorState;
 				this.computeMesh();
-		}
-
-		initControls(): Rx.Observable<ControlState> {
-				const st = document.querySelector<HTMLInputElement>('#stellationSize');
-				if (st) {
-						return Rx.Observable
-								.fromEvent(st, 'input')
-								.map((event: Event) => parseFloat((event.target as HTMLInputElement).value))
-								.startWith(parseFloat(st.value))
-								.map(stellationSize => ({ stellationSize }));
-				}
-
-				throw new Error("Can't find range sliders")
 		}
 
 		computeColor(saturation: NormalDist, luminosity: NormalDist): three.Color {
@@ -60,12 +78,14 @@ export class Dodecahedron
 
 				const point = center.clone();
 				
-				this.controls.subscribe(({ stellationSize }) => {
+				const subscription = this.controls.subscribe(({ stellationSize }) => {
 						point.set(center.x + n.x * stellationSize,
 											center.y + n.y * stellationSize,
 											center.z + n.z * stellationSize);
 						this.geometry.elementsNeedUpdate = true;
 				});
+
+				this.subscriptions.push(subscription);
 
 				return point;
 		}
@@ -94,10 +114,12 @@ export class Dodecahedron
 				this.geometry.faces.push(new three.Face3(newIndex, i4, i5));
 				this.geometry.faces.push(new three.Face3(newIndex, i5, i1));
 
-				this.colors.subscribe((colorState: ColorState) => {
+				const subscription = this.colors.subscribe((colorState: ColorState) => {
 						this.setFaceColor(start, colorState)
 						this.geometry.elementsNeedUpdate = true;
 				});
+
+				this.subscriptions.push(subscription);
 		}
 
 		computeMesh() {
@@ -147,10 +169,12 @@ export class Dodecahedron
 				this.addFaces([ 5, 15,  7, 19, 18]);
 				this.addFaces([ 3, 11,  7, 15, 13]);
 
-				this.controls.subscribe(() => {
+				const subscription = this.controls.subscribe(() => {
 						this.geometry.computeBoundingSphere();
 						this.geometry.computeFaceNormals();
 				});
+
+				this.subscriptions.push(subscription);
 
 				const material = new three.MeshPhongMaterial({
 						vertexColors: true,
@@ -158,18 +182,29 @@ export class Dodecahedron
 
 				this.mesh = new three.Mesh( this.geometry, material );
 		}
+
+		cleanup() {
+				this.subscriptions.forEach((subscription: Subscription) => {
+						subscription.unsubscribe();
+				});
+				this.subscriptions = [];
+		}
 }
 
-export default function dodecahedron(scene: three.Scene): Rx.Observable<three.Object3D> {
-		return new Rx.Observable((subscriber: Rx.Subscriber<three.Object3D>) => {
-				const controls = document.getElementById('dodecahedronControls');
-				controls.setAttribute('style', 'display:block');
-				const dodecahedron = new Dodecahedron();
+export default function dodecahedron(scene: three.Scene): Observable<three.Object3D> {
+		return new Observable((subscriber: Subscriber<three.Object3D>) => {
+				const controlNode = document.getElementById('controls');
+				if (!controlNode) {
+						throw new Error("can't find controls");
+				}
+
+				const controls = new Controls(controlNode);
+				const dodecahedron = new Dodecahedron(controls);
 				scene.add(dodecahedron.mesh);
 				subscriber.next(dodecahedron.mesh);
 				return function() {
 						scene.remove(dodecahedron.mesh);
-						controls.setAttribute('style', 'display:none');
+						dodecahedron.cleanup();
 				}
 		})
 }
