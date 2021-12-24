@@ -3,15 +3,63 @@ import * as three from 'three';
 import bitGenerator from './bitGenerator';
 import randomColors, { ColorState, computeColor } from './randomColors';
 import coldToHot from './coldToHot';
+import objectControls from './objectControls'
 import formGroup from './formGroup';
+import optionPicker, { Option } from './optionPicker';
 import slider from './slider';
 
 export type ControlState = {
 		points: three.Vector3[];
 }
 
-function prismHeightControl(parent: Node): Observable<number> {
-		return formGroup(parent, 'Prism', (parent: Node) => slider(parent, 'prismHeight', 'Height', 0.5, 1, 0.01, 0.62));
+type PolarParams = {
+		type: 'polar';
+		count: number;
+		prismHeight: number;
+}
+
+type RhombicParams = {
+		type: 'rhombic';
+		count: 4 | 6;
+}
+
+type Params = PolarParams | RhombicParams;
+
+function polarControl(parent: Node): Observable<PolarParams> {
+		return formGroup(parent, 'Polar', (parent: Node) => {
+				const count = slider(parent, 'count', 'Side Count', 3, 12, 1, 3);
+				const prism = slider(parent, 'prismHeight', 'Prism Height', 0.5, 1, 0.01, 0.62);
+
+				return Observable.combineLatest(count, prism).map(([count, prismHeight]) => ({ type: 'polar', count, prismHeight }));
+		});
+}
+
+function rhombicControl(parent: Node): Observable<RhombicParams> {
+		const options: Option[] = [
+				{ id: '4', title: 'Dodecahedron' },
+				{ id: '6', title: 'Triacontahedron' },
+		];
+
+		return optionPicker(parent, 'count', 'Side Count', options, '4').map((count: string) => {
+				if (count === '6') 
+						return { type: 'rhombic', count: 6 };
+
+				return { type: 'rhombic', count: 4 };
+		});
+}
+
+function ZonohedronControl(parent: Node): Observable<Params> {
+		const options: Option[] = [
+				{ id: 'polar', title: 'Polar' },
+				{ id: 'rhombic', title: 'Rhombic' },
+		];
+		
+		const zType = optionPicker(parent, 'type', 'Type', options);
+
+		const rhombic = rhombicControl(parent);
+		const polar = polarControl(parent);
+
+		return objectControls<Params>(zType, { rhombic, polar });
 }
 
 function oddPolar(n: number, prismHeight: number): three.Vector3[] {
@@ -42,20 +90,18 @@ function polarZonohedron(n: number, prismHeight: number): three.Vector3[] {
 		return evenPolar(n, prismHeight);
 }
 
-const polar = true;
-
 class Controls {
 		colorState: Observable<ColorState>;
 		controlState: Observable<ControlState>;
 
 		constructor(parent: Node) {
 				this.colorState = coldToHot(randomColors(parent));
-				this.controlState = coldToHot(prismHeightControl(parent)).map((prismHeight) => this.computePoints(prismHeight));
+				this.controlState = coldToHot(ZonohedronControl(parent)).map((params: Params) => this.computePoints(params));
 		}
 
-		computePoints(prismHeight: number) {
-				if (polar) {
-						return { points: polarZonohedron(7, prismHeight) }
+		computePoints(params: Params) {
+				if (params.type === 'polar') {
+						return { points: polarZonohedron(params.count, params.prismHeight) }
 				}
 
 				const root2over2 = 1.0/Math.sqrt(2);
@@ -76,7 +122,7 @@ class Controls {
 						new three.Vector3(-phi, 0, 1),
 				]
 
-				const points = true ? p2 : p1;
+				const points = params.count === 6 ? p2 : p1;
 
 				return { points };
 		}
@@ -143,6 +189,7 @@ export class Zonohedron {
 						this.geometry.vertices.forEach(v => v.sub(center));
 
 						if (numPoints !== points.length) {
+								this.geometry.faces = [];
 								numPoints = points.length;
 								for (let i = 0; i < points.length - 1; i++) {
 										for (let j = i+1; j < points.length; j++) {

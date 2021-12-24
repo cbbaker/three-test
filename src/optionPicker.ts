@@ -16,7 +16,7 @@ class Control {
 				pickerId: string,
 				pickerTitle: string,
 				options: Option[],
-				defaultOption: string
+				defaultOption?: string
 		) {
 				this.picker = document.createElement('div');
 				this.picker.setAttribute('class', 'form-group');
@@ -71,7 +71,7 @@ export default function optionPicker(
 				pickerId: string,
 				pickerTitle: string,
 				options: Option[],
-				defaultOption: string
+				defaultOption?: string
 		): Observable<string> {
 		return new Observable((subscriber: Subscriber<string>) => {
 				const control = new Control(parent, pickerId, pickerTitle, options, defaultOption);

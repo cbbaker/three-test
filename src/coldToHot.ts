@@ -1,7 +1,7 @@
-import { Observable, BehaviorSubject } from 'rxjs-compat';
+import { Observable, ReplaySubject } from 'rxjs-compat';
 
 export default function makeHotRefCounted<T>(cold: Observable<T>): Observable<T> {
-  const subject = new BehaviorSubject<T>(undefined);
+  const subject = new ReplaySubject<T>();
   const mainSub = cold.subscribe(subject);
   let refs = 0;
   return new Observable<T>((observer) => {

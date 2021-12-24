@@ -22,7 +22,7 @@ function geometry() {
 				{ id: 'zonohedron', title: 'Zonohedron' },
 		];
 
-		return coldToHot(optionPicker(controls, 'geometry', 'Geometry', options, 'zonohedron'));
+		return coldToHot(optionPicker(controls, 'geometry', 'Geometry', options));
 };
 
 
