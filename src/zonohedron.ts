@@ -1,7 +1,6 @@
 import { Observable, Subscriber, Subscription } from 'rxjs-compat';
 import * as three from 'three';
 import bitGenerator from './bitGenerator';
-import randomColors, { ColorState, computeColor } from './randomColors';
 import coldToHot from './coldToHot';
 import objectControls from './objectControls'
 import formGroup from './formGroup';
@@ -91,11 +90,9 @@ function polarZonohedron(n: number, prismHeight: number): three.Vector3[] {
 }
 
 class Controls {
-		colorState: Observable<ColorState>;
 		controlState: Observable<ControlState>;
 
 		constructor(parent: Node) {
-				this.colorState = coldToHot(randomColors(parent));
 				this.controlState = coldToHot(ZonohedronControl(parent)).map((params: Params) => this.computePoints(params));
 		}
 
@@ -132,19 +129,17 @@ export class Zonohedron {
 		mesh: three.Object3D;
 		geometry: three.Geometry;
 		controls: Observable<ControlState>;
-		colors: Observable<ColorState>;
 		subscriptions: Subscription[];
 
 		constructor(controls: Controls) {
 				this.subscriptions = [];
 				this.controls = controls.controlState;
-				this.colors = controls.colorState;
 				this.computeMesh();
 		}
 
 
-		setFaceColor(start: number, colorState: ColorState): void {
-				const color = computeColor(colorState);
+		setFaceColor(start: number): void {
+				const color = new three.Color().setHSL(Math.random(), 0.3, 0.5);
 				this.geometry.faces[start+0].color = color;
 				this.geometry.faces[start+1].color = color;
 		}
@@ -157,12 +152,7 @@ export class Zonohedron {
 				this.geometry.faces.push(new three.Face3(i1, i2, i3));
 				this.geometry.faces.push(new three.Face3(i1, i3, i4));
 
-				const subscription = this.colors.subscribe((colorState: ColorState) => {
-						this.setFaceColor(start, colorState);
-						this.geometry.elementsNeedUpdate = true;
-				});
-
-				this.subscriptions.push(subscription);
+				this.setFaceColor(start);
 		}
 
 		computeMesh() {

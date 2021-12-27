@@ -17,12 +17,10 @@ function interpolateControl(parent: Node): Observable<number> {
 
 class Controls {
 		parent: Node;
-		colorState: Observable<ColorState>;
 		controlState: Observable<ControlState>;
 
 		constructor(parent: Node) {
 				this.parent = parent;
-				this.colorState = coldToHot(randomColors(parent));
 				this.controlState = coldToHot(interpolateControl(parent)).map(interpolate => ({ interpolate }));
 		}
 }
@@ -32,18 +30,16 @@ export class Icosahedron
 		mesh: three.Object3D;
 		geometry: three.Geometry;
 		controls: Observable<ControlState>;
-		colors: Observable<ColorState>;
 		subscriptions: Subscription[];
 
 		constructor(controls: Controls) {
 				this.subscriptions = [];
 				this.controls = controls.controlState;
-				this.colors = controls.colorState;
 				this.computeMesh();
 		}
 
-		setFaceColor(start: number, colorState: ColorState): void {
-				const color = computeColor(colorState);
+		setFaceColor(start: number): void {
+				const color = new three.Color().setHSL(Math.random(), 0.3, 0.5);
 				this.geometry.faces[start].color = color;
 		}
 
@@ -54,12 +50,7 @@ export class Icosahedron
 
 				this.geometry.faces.push(new three.Face3(i1, i2, i3));
 
-				const subscription = this.colors.subscribe((colorState: ColorState) => {
-						this.setFaceColor(start, colorState)
-						this.geometry.elementsNeedUpdate = true;
-				});
-
-				this.subscriptions.push(subscription);
+				this.setFaceColor(start)
 		}
 
 		computeVertices(interpolate: number) {

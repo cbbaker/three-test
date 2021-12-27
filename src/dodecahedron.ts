@@ -1,6 +1,5 @@
 import { Observable, Subscriber, Subscription } from 'rxjs-compat';
 import * as three from 'three';
-import randomColors, { ColorState, computeColor } from './randomColors';
 import coldToHot from './coldToHot';
 import formGroup from './formGroup';
 import slider from './slider';
@@ -15,12 +14,10 @@ function stellationControl(parent: Node): Observable<number> {
 
 class Controls {
 		parent: Node;
-		colorState: Observable<ColorState>;
 		controlState: Observable<ControlState>;
 
 		constructor(parent: Node) {
 				this.parent = parent;
-				this.colorState = coldToHot(randomColors(parent));
 				this.controlState = coldToHot(stellationControl(parent)).map(stellationSize => ({ stellationSize }));
 		}
 }
@@ -30,13 +27,11 @@ export class Dodecahedron
 		mesh: three.Object3D;
 		geometry: three.Geometry;
 		controls: Observable<ControlState>;
-		colors: Observable<ColorState>;
 		subscriptions: Subscription[];
 
 		constructor(controls: Controls) {
 				this.subscriptions = [];
 				this.controls = controls.controlState;
-				this.colors = controls.colorState;
 				this.computeMesh();
 		}
 
@@ -67,8 +62,8 @@ export class Dodecahedron
 				return point;
 		}
 
-		setFaceColor(start: number, colorState: ColorState): void {
-				const color = computeColor(colorState);
+		setFaceColor(start: number): void {
+				const color = new three.Color().setHSL(Math.random(), 0.3, 0.5);
 				this.geometry.faces[start+0].color = color;
 				this.geometry.faces[start+1].color = color;
 				this.geometry.faces[start+2].color = color;
@@ -91,12 +86,7 @@ export class Dodecahedron
 				this.geometry.faces.push(new three.Face3(newIndex, i4, i5));
 				this.geometry.faces.push(new three.Face3(newIndex, i5, i1));
 
-				const subscription = this.colors.subscribe((colorState: ColorState) => {
-						this.setFaceColor(start, colorState)
-						this.geometry.elementsNeedUpdate = true;
-				});
-
-				this.subscriptions.push(subscription);
+				this.setFaceColor(start)
 		}
 
 		computeMesh() {
