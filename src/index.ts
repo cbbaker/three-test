@@ -35,8 +35,10 @@ function setup() {
 		});
     renderer.setSize( canvas.width, canvas.height );
 
-		return ({ object: { spline, time }, scene, mesh, cameraZ }: State) => {
-				camera.position.z = cameraZ;
+		return ({ scene, cameraZ }: State) => {
+				if (cameraZ) {
+						camera.position.z = cameraZ;
+				}
 				const width = canvas.clientWidth;
 				const height = canvas.clientHeight;
 				const needsResize = canvas.width !== width || canvas.height !== height;
@@ -44,9 +46,6 @@ function setup() {
 						renderer.setSize(width, height, false);
 						camera.aspect = width / height;
 						camera.updateProjectionMatrix();
-				}
-				if (mesh !== undefined) {
-						mesh.quaternion.copy(spline.evalAt(time));
 				}
 				renderer.render(scene, camera);
 		};

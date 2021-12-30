@@ -1,5 +1,6 @@
 import * as three from 'three';
 import * as Rx from 'rxjs-compat';
+import mouseEvents, { Delta } from './mouseEvents';
 import coldToHot from './coldToHot';
 import optionPicker, { Option } from './optionPicker'
 
@@ -7,6 +8,7 @@ export type Input = {
 		geometry: string;
 		speed: number;
 		cameraZ: number;
+		delta: Delta;
 };
 
 
@@ -47,8 +49,8 @@ const speed = linearKeyControl(0.001, Math.sqrt(2), ['+', '='], ['-']);
 const cameraZ = linearKeyControl(6, Math.sqrt(Math.sqrt(2)), ['s'], ['w']);
 
 const input = Rx.Observable.combineLatest(
-		geometry(), speed, cameraZ, 
-		(geometry, speed, cameraZ) => ({ geometry, speed, cameraZ })
+		geometry(), speed, cameraZ, mouseEvents(document.getElementById('canvas')),
+		(geometry, speed, cameraZ, delta) => ({ geometry, speed, cameraZ, delta })
 );
 
 export default input;
