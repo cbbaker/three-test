@@ -1,5 +1,6 @@
 import * as three from 'three';
 import * as Rx from 'rxjs-compat';
+import { Translation, Rotation, Scale } from './mouseEvents';
 import input, { Input } from './input';
 import dodecahedron from './dodecahedron';
 import zonohedron from './zonohedron';
@@ -62,19 +63,20 @@ type Updater = (state: State) => State;
 
 const geometry = input.pluck('geometry') as Rx.Observable<string>;
 
-const mesh = objectControls(geometry.distinctUntilChanged(), {
-		dodecahedron: dodecahedron(initialState.scene),
-		zonohedron: zonohedron(initialState.scene),
-		icosahedron: icosahedron(initialState.scene),
-})
+const mesh = geometry.distinctUntilChanged().switchMap((geometryType: string) => {
+		switch (geometryType) {
+				case 'icosahedron':
+						return icosahedron(initialState.scene);
+				case 'zonohedron':
+						return zonohedron(initialState.scene);
+				default:
+						return dodecahedron(initialState.scene);
+		}
+});
 
 const events = clock.withLatestFrom(input).withLatestFrom(mesh);
 
-const updater = events.map(([[_, input], mesh]: [[Clock, Input], three.Object3D]) => (state: State) => {
-		const {
-				delta: { x, y },
-				cameraZ,
-		} = input;
+function doTranslation({ x, y }: Translation, state: State, cameraZ: number, mesh: three.Object3D): State {
 		const amount = Math.sqrt(x * x + y * y);
 		if (amount > 0.001) {
 				const cos = Math.cos(amount * 0.01), sin = Math.sin(amount * 0.01);
@@ -84,6 +86,38 @@ const updater = events.map(([[_, input], mesh]: [[Clock, Input], three.Object3D]
 		}
 
 		return { ...state, cameraZ, mesh };
+}
+
+function doRotation({ angle }: Rotation, state: State, cameraZ: number, mesh: three.Object3D): State {
+		if (angle > 0.001 || angle < -0.001) {
+				const cos = Math.cos(angle * 0.01), sin = Math.sin(angle * 0.01);
+				const q = new three.Quaternion(0, 0, sin, cos);
+				state.orientation.premultiply(q);
+				mesh.quaternion.copy(state.orientation);
+		}
+
+		return { ...state, cameraZ, mesh };
+}
+
+function doScale({ scale }: Scale, state: State, cameraZ: number, mesh: three.Object3D): State {
+		cameraZ += scale * 0.1;
+
+		return { ...state, cameraZ, mesh };
+}
+
+const updater = events.map(([[_, input], mesh]: [[Clock, Input], three.Object3D]) => (state: State) => {
+		const {
+				transformation,
+				cameraZ,
+		} = input;
+		switch (transformation.type) {
+				case 'translation':
+						return doTranslation(transformation, state, cameraZ, mesh);
+				case 'rotation':
+						return doRotation(transformation, state, cameraZ, mesh);
+				case 'scale':
+						return doScale(transformation, state, cameraZ, mesh);
+		}
 });
 
 const state = Rx.Observable

@@ -1,6 +1,6 @@
 import * as three from 'three';
 import * as Rx from 'rxjs-compat';
-import mouseEvents, { Delta } from './mouseEvents';
+import mouseEvents, { Transformation } from './mouseEvents';
 import coldToHot from './coldToHot';
 import optionPicker, { Option } from './optionPicker'
 
@@ -8,7 +8,7 @@ export type Input = {
 		geometry: string;
 		speed: number;
 		cameraZ: number;
-		delta: Delta;
+		transformation: Transformation;
 };
 
 
@@ -24,7 +24,7 @@ function geometry() {
 				{ id: 'zonohedron', title: 'Zonohedron' },
 		];
 
-		return coldToHot(optionPicker(controls, 'geometry', 'Geometry', options));
+		return coldToHot(optionPicker(controls, 'geometry', 'Geometry', options, 'dodecahedron'));
 };
 
 
@@ -50,7 +50,7 @@ const cameraZ = linearKeyControl(6, Math.sqrt(Math.sqrt(2)), ['s'], ['w']);
 
 const input = Rx.Observable.combineLatest(
 		geometry(), speed, cameraZ, mouseEvents(document.getElementById('canvas')),
-		(geometry, speed, cameraZ, delta) => ({ geometry, speed, cameraZ, delta })
+		(geometry, speed, cameraZ, transformation) => ({ geometry, speed, cameraZ, transformation })
 );
 
 export default input;
