@@ -1,27 +1,10 @@
 import { Observable } from 'rxjs-compat';
+import { Gesture } from './gestures.ts';
 
-export type Delta = {
+type Delta = {
 		x: number;
 		y: number;
 }
-
-export type Translation = {
-		type: 'translation';
-		x: number;
-		y: number;
-}
-
-export type Rotation = {
-		type: 'rotation';
-		angle: number;
-}
-
-export type Scale = {
-		type: 'scale';
-		scale: number;
-}
-
-export type Transformation = Translation | Rotation | Scale;
 
 function eventToDelta(evt: MouseEvent): Delta {
 		evt.preventDefault();
@@ -29,13 +12,15 @@ function eventToDelta(evt: MouseEvent): Delta {
 		return { x, y };
 }
 
-export default function mouseEvents(node: Node): Observable<Transformation> {
+const zero: Gesture = { type: 'move', x: 0, y: 0 };
+
+export default function mouseEvents(node: Node): Observable<Gesture> {
 		return Observable.fromEvent(node, 'mousedown').concatMap((evt: MouseEvent) => {
 				const start = Observable.from([eventToDelta(evt)]);
 				const moves = Observable.fromEvent(document, 'mousemove')
 						.takeUntil(Observable.fromEvent(document, 'mouseup'))
 						.map(eventToDelta);
-
+				
 				return Observable.concat(start, moves)
 						.pairwise()
 						.map(([last, cur]: Delta[]) => {
@@ -43,10 +28,10 @@ export default function mouseEvents(node: Node): Observable<Transformation> {
 								const y = cur.y - last.y;
 
 								if (x === undefined || y === undefined) {
-										return { type: 'translation', x: 0, y:0 } as Translation;
+										return zero;
 								}
 
-								return { type: 'translation', x, y } as Translation;
+								return { ...zero, x, y };
 						});
-		}).startWith({ type: 'translation', x: 0, y: 0 });
+		}).startWith(zero);
 }

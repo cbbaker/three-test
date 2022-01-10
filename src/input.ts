@@ -1,14 +1,15 @@
-import * as three from 'three';
 import * as Rx from 'rxjs-compat';
-import mouseEvents, { Transformation } from './mouseEvents';
+import { Gesture } from './gestures';
+import mouseEvents from './mouseEvents';
+import touchEvents from './touchEvents';
 import coldToHot from './coldToHot';
-import optionPicker, { Option } from './optionPicker'
+import optionPicker from './optionPicker'
 
 export type Input = {
 		geometry: string;
 		speed: number;
 		cameraZ: number;
-		transformation: Transformation;
+		gesture: Gesture;
 };
 
 
@@ -48,9 +49,12 @@ function linearKeyControl(initialValue: number, inc: number, incKeys: string[], 
 const speed = linearKeyControl(0.001, Math.sqrt(2), ['+', '='], ['-']);
 const cameraZ = linearKeyControl(6, Math.sqrt(Math.sqrt(2)), ['s'], ['w']);
 
+const canvas = document.getElementById('canvas')
+const gesture = Rx.Observable.merge(mouseEvents(canvas), touchEvents(canvas))
+
 const input = Rx.Observable.combineLatest(
-		geometry(), speed, cameraZ, mouseEvents(document.getElementById('canvas')),
-		(geometry, speed, cameraZ, transformation) => ({ geometry, speed, cameraZ, transformation })
+		geometry(), speed, cameraZ, gesture,
+		(geometry, speed, cameraZ, gesture) => ({ geometry, speed, cameraZ, gesture })
 );
 
 export default input;

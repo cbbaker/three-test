@@ -1,6 +1,6 @@
 import * as three from 'three';
 import * as Rx from 'rxjs-compat';
-import { Translation, Rotation, Scale } from './mouseEvents';
+import { Move, Twirl } from './gestures';
 import input, { Input } from './input';
 import dodecahedron from './dodecahedron';
 import zonohedron from './zonohedron';
@@ -76,7 +76,7 @@ const mesh = geometry.distinctUntilChanged().switchMap((geometryType: string) =>
 
 const events = clock.withLatestFrom(input).withLatestFrom(mesh);
 
-function doTranslation({ x, y }: Translation, state: State, cameraZ: number, mesh: three.Object3D): State {
+function doMove({ x, y }: Move, state: State, cameraZ: number, mesh: three.Object3D): State {
 		const amount = Math.sqrt(x * x + y * y);
 		if (amount > 0.001) {
 				const cos = Math.cos(amount * 0.01), sin = Math.sin(amount * 0.01);
@@ -88,7 +88,7 @@ function doTranslation({ x, y }: Translation, state: State, cameraZ: number, mes
 		return { ...state, cameraZ, mesh };
 }
 
-function doRotation({ angle }: Rotation, state: State, cameraZ: number, mesh: three.Object3D): State {
+function doTwirl({ angle, scale }: Twirl, state: State, cameraZ: number, mesh: three.Object3D): State {
 		if (angle > 0.001 || angle < -0.001) {
 				const cos = Math.cos(angle * 0.01), sin = Math.sin(angle * 0.01);
 				const q = new three.Quaternion(0, 0, sin, cos);
@@ -96,27 +96,21 @@ function doRotation({ angle }: Rotation, state: State, cameraZ: number, mesh: th
 				mesh.quaternion.copy(state.orientation);
 		}
 
-		return { ...state, cameraZ, mesh };
-}
-
-function doScale({ scale }: Scale, state: State, cameraZ: number, mesh: three.Object3D): State {
-		cameraZ += scale * 0.1;
+		cameraZ *= scale;
 
 		return { ...state, cameraZ, mesh };
 }
 
 const updater = events.map(([[_, input], mesh]: [[Clock, Input], three.Object3D]) => (state: State) => {
 		const {
-				transformation,
+				gesture,
 				cameraZ,
 		} = input;
-		switch (transformation.type) {
-				case 'translation':
-						return doTranslation(transformation, state, cameraZ, mesh);
-				case 'rotation':
-						return doRotation(transformation, state, cameraZ, mesh);
-				case 'scale':
-						return doScale(transformation, state, cameraZ, mesh);
+		switch (gesture.type) {
+				case 'move':
+						return doMove(gesture, state, cameraZ, mesh);
+				case 'twirl':
+						return doTwirl(gesture, state, cameraZ, mesh);
 		}
 });
 
