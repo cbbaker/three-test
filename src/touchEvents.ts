@@ -7,7 +7,7 @@ type Touch = {
 		pageY: number;
 }
 type TouchState = {
-		ongoingTouches: Touch[];
+		ongoingTouches: Map<number, Touch>;
 		gesture: Gesture;
 }
 
@@ -25,25 +25,22 @@ function findTouch(identifier: number, list: TouchList, defaultTouch: Touch): To
 		return defaultTouch;
 }
 
-function updateTouches(ongoingTouches: Touch[], list: TouchList): void {
+function updateTouches(ongoingTouches: Map<number, Touch>, list: TouchList): void {
 		for (let i = 0; i < list.length; i++) {
 				const { identifier, pageX, pageY } = list.item(i);
-				const old = ongoingTouches.findIndex(touch => touch.identifier === identifier);
-				if (old >= 0) {
-						ongoingTouches[old] = { identifier, pageX, pageY };
-				}
+				ongoingTouches.set(identifier, { identifier, pageX, pageY });
 		}
 }
 
 function updateStart(evt: TouchEvent): TouchStateUpdate {
 		return function({ ongoingTouches }: TouchState): TouchState {
-				// evt.preventDefault();
+				evt.preventDefault();
 
 				const touches = evt.changedTouches;
 
 				for (let i = 0; i < touches.length; ++i) {
 						const { identifier, pageX, pageY } = touches.item(i);
-						ongoingTouches.push({ identifier, pageX, pageY });
+						ongoingTouches.set(identifier, { identifier, pageX, pageY });
 				}
 
 				return { ongoingTouches, gesture: zero };
@@ -72,12 +69,11 @@ function computeTwirl(oldTouches: [Touch, Touch], newTouches: [Touch, Touch]): G
 
 function updateMove(evt: TouchEvent): TouchStateUpdate {
 		return function({ ongoingTouches }: TouchState): TouchState {
-				// evt.preventDefault();
 
 				const touches = evt.changedTouches;
 
-				if (ongoingTouches.length === 1) {
-						const oldTouch = ongoingTouches[0];
+				if (ongoingTouches.size === 1) {
+						const oldTouch = ongoingTouches.values().next().value;
 						const newTouch = findTouch(oldTouch.identifier, evt.changedTouches, oldTouch);
 
 						const gesture = computeMove(oldTouch, newTouch);
@@ -85,10 +81,14 @@ function updateMove(evt: TouchEvent): TouchStateUpdate {
 						return { ongoingTouches, gesture };
 				} 
 
-				if (ongoingTouches.length === 2) {
-						const newTouches = ongoingTouches.map((touch: Touch) => findTouch(touch.identifier, touches, touch));
+				if (ongoingTouches.size === 2) {
+						const oldTouches = [];
+						const values = ongoingTouches.values();
+						oldTouches.push(values.next().value);
+						oldTouches.push(values.next().value);
+						const newTouches = oldTouches.map((touch: Touch) => findTouch(touch.identifier, touches, touch));
 
-						const gesture = computeTwirl(ongoingTouches as [Touch, Touch], newTouches as [Touch, Touch]);
+						const gesture = computeTwirl(oldTouches as [Touch, Touch], newTouches as [Touch, Touch]);
 						updateTouches(ongoingTouches, touches);
 						return { ongoingTouches, gesture };
 				}
@@ -99,16 +99,12 @@ function updateMove(evt: TouchEvent): TouchStateUpdate {
 
 function updateStop(evt: TouchEvent): TouchStateUpdate {
 		return function({ ongoingTouches }: TouchState): TouchState {
-				// evt.preventDefault();
 
 				const touches = evt.changedTouches;
 				
 				for (let i = 0; i < touches.length; ++i) {
 						const { identifier } = touches.item(i);
-						const old = ongoingTouches.findIndex((touch: Touch) => touch.identifier === identifier)
-						if (old >= 0) {
-								ongoingTouches.splice(old, 1);
-						}
+						ongoingTouches.delete(identifier);
 				}
 
 				return { ongoingTouches, gesture: zero };
@@ -116,18 +112,18 @@ function updateStop(evt: TouchEvent): TouchStateUpdate {
 }
 
 export default function touchEvents(node: Node): Observable<Gesture> {
-		const start = Observable.fromEvent(node, 'touchstart').map(updateStart);
-		const move = Observable.fromEvent(document, 'touchmove').map(updateMove);
+		const start = Observable.fromEvent(node, 'touchstart')
+				.map(updateStart);
+		const move = Observable.fromEvent(document, 'touchmove')
+				.map(updateMove);
 		const end = Observable.merge(Observable.fromEvent(document, 'touchend'), 
-																 Observable.fromEvent(document, 'touchcancel')).map(updateStop);
+																 Observable.fromEvent(document, 'touchcancel'))
+				.map(updateStop);
 
-		const changes = Observable.merge(start, move, end);
-
-		return start.concatMap((initialUpdate: TouchStateUpdate) => {
-				return changes.scan((state: TouchState, update: TouchStateUpdate) => {
-						return update(state);
-				}, initialUpdate({ ongoingTouches: [], gesture: zero }))
-						.takeWhile(({ ongoingTouches }) => ongoingTouches.length > 0)
-						.map(({ gesture }) => gesture);
-		}).startWith(zero);
+		return Observable.merge(start, move, end)
+				.scan((state: TouchState, update: TouchStateUpdate) => {
+				return update(state);
+		}, { ongoingTouches: new Map<number, Touch>(), gesture: zero })
+				.map(({ gesture }) => gesture)
+				.startWith(zero);
 }

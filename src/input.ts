@@ -49,8 +49,9 @@ function linearKeyControl(initialValue: number, inc: number, incKeys: string[], 
 const speed = linearKeyControl(0.001, Math.sqrt(2), ['+', '='], ['-']);
 const cameraZ = linearKeyControl(6, Math.sqrt(Math.sqrt(2)), ['s'], ['w']);
 
+const gesture = new Rx.BehaviorSubject<Gesture>({ type: 'move', x: 0, y: 0 });
 const canvas = document.getElementById('canvas')
-const gesture = Rx.Observable.merge(mouseEvents(canvas), touchEvents(canvas))
+Rx.Observable.merge(mouseEvents(canvas), touchEvents(canvas)).subscribe(gesture);
 
 const input = Rx.Observable.combineLatest(
 		geometry(), speed, cameraZ, gesture,
