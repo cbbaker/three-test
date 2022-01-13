@@ -57,6 +57,7 @@ export type State = {
 export const initialState = {
 		scene: new three.Scene(),
 		orientation: new three.Quaternion(0, 0, 0, 1),
+		cameraZ: 6,
 };
 
 type Updater = (state: State) => State;
@@ -76,7 +77,7 @@ const mesh = geometry.distinctUntilChanged().switchMap((geometryType: string) =>
 
 const events = clock.withLatestFrom(input).withLatestFrom(mesh);
 
-function doMove({ x, y }: Move, state: State, cameraZ: number, mesh: three.Object3D): State {
+function doMove({ x, y }: Move, state: State, mesh: three.Object3D): State {
 		const amount = Math.sqrt(x * x + y * y);
 		if (amount > 0.001) {
 				const cos = Math.cos(amount * 0.01), sin = Math.sin(amount * 0.01);
@@ -85,18 +86,18 @@ function doMove({ x, y }: Move, state: State, cameraZ: number, mesh: three.Objec
 				mesh.quaternion.copy(state.orientation);
 		}
 
-		return { ...state, cameraZ, mesh };
+		return { ...state, mesh };
 }
 
-function doTwirl({ angle, scale }: Twirl, state: State, cameraZ: number, mesh: three.Object3D): State {
+function doTwirl({ angle, scale }: Twirl, state: State, mesh: three.Object3D): State {
 		if (angle > 0.001 || angle < -0.001) {
-				const cos = Math.cos(angle * 0.01), sin = Math.sin(angle * 0.01);
+				const cos = Math.cos(-angle), sin = Math.sin(-angle);
 				const q = new three.Quaternion(0, 0, sin, cos);
 				state.orientation.premultiply(q);
 				mesh.quaternion.copy(state.orientation);
 		}
 
-		cameraZ *= scale;
+		const cameraZ = state.cameraZ * (scale > 0.01 ? 1/scale : 1);
 
 		return { ...state, cameraZ, mesh };
 }
@@ -104,13 +105,12 @@ function doTwirl({ angle, scale }: Twirl, state: State, cameraZ: number, mesh: t
 const updater = events.map(([[_, input], mesh]: [[Clock, Input], three.Object3D]) => (state: State) => {
 		const {
 				gesture,
-				cameraZ,
 		} = input;
 		switch (gesture.type) {
 				case 'move':
-						return doMove(gesture, state, cameraZ, mesh);
+						return doMove(gesture, state, mesh);
 				case 'twirl':
-						return doTwirl(gesture, state, cameraZ, mesh);
+						return doTwirl(gesture, state, mesh);
 		}
 });
 
