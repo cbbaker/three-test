@@ -2,7 +2,6 @@ import { Observable, Subscriber, Subscription } from 'rxjs-compat';
 import * as three from 'three';
 import bitGenerator from './bitGenerator';
 import coldToHot from './coldToHot';
-import objectControls from './objectControls'
 import formGroup from './formGroup';
 import optionPicker, { Option } from './optionPicker';
 import slider from './slider';
@@ -53,12 +52,15 @@ function ZonohedronControl(parent: Node): Observable<Params> {
 				{ id: 'rhombic', title: 'Rhombic' },
 		];
 		
-		const zType = optionPicker(parent, 'type', 'Type', options);
+		const zType = optionPicker(parent, 'type', 'Type', options, 'polar');
 
-		const rhombic = rhombicControl(parent);
-		const polar = polarControl(parent);
+		return zType.distinctUntilChanged().switchMap((zType: string) => {
+				if (zType === 'rhombic') {
+						return rhombicControl(parent);
+				}
 
-		return objectControls<Params>(zType, { rhombic, polar });
+				return polarControl(parent);
+		});
 }
 
 function oddPolar(n: number, prismHeight: number): three.Vector3[] {

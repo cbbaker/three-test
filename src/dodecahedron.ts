@@ -1,7 +1,8 @@
-import { Observable, Subscriber, Subscription } from 'rxjs-compat';
+import { Observable, BehaviorSubject, Subscriber, Subscription } from 'rxjs-compat';
 import * as three from 'three';
-// import formGroup from './formGroup';
-// import slider from './slider';
+import formGroup from './formGroup';
+import slider from './slider';
+import checkbox from './checkbox';
 
 type ControlState = {
 		opacity: number;
@@ -12,13 +13,35 @@ type ControlState = {
 		oddTriangleCount: number;
 }
 
+function visibilityControls(parent: Node): Observable<ControlState> {
+		return formGroup<ControlState>(parent, 'Visibility', (parent: Node) => {
+				const showShell = checkbox(parent, 'showShell', 'Show shell', true);
+				const showSkeleton = checkbox(parent, 'showSkeleton', 'Show skeleton', false);
+				const opacity = slider(parent, 'opacity', 'Opacity', 0, 1, 0.05, 1);
+				const cubeCount = slider(parent, 'cubeCount', 'Cube count', 0, 5, 1, 0);
+				const evenTriangleCount = slider(parent, 'evenTriangleCount', 'Even triangle count', 0, 5, 1, 0);
+				const oddTriangleCount = slider(parent, 'oddTriangleCount', 'Odd triangle count', 0, 5, 1, 0);
+				return Observable.combineLatest(
+						showShell, showSkeleton, opacity, cubeCount, evenTriangleCount, oddTriangleCount, 
+						(showShell, showSkeleton, opacity, cubeCount, evenTriangleCount, oddTriangleCount) => ({ 
+						opacity,
+						cubeCount,
+						evenTriangleCount,
+						oddTriangleCount,
+						showShell,
+						showSkeleton,
+				}));
+		});
+}
+
 class Controls {
 		parent: Node;
 		controlState: Observable<ControlState>;
+		subscription: Subscription;
 
 		constructor(parent: Node) {
 				this.parent = parent;
-				this.controlState = Observable.of({
+				const controlState = new BehaviorSubject<ControlState>({
 						opacity: 0.5,
 						showShell: true,
 						showSkeleton: false,
@@ -26,6 +49,12 @@ class Controls {
 						evenTriangleCount: 0,
 						oddTriangleCount: 0,
 				});
+				this.subscription = visibilityControls(parent).subscribe(controlState);
+				this.controlState = controlState;
+		}
+
+		cleanup() {
+				this.subscription.unsubscribe();
 		}
 }
 
@@ -88,7 +117,6 @@ function computeCubeOperations(operations: Permutation[]): Permutation[] {
 }
 
 const cubeOperations = computeCubeOperations(operations);
-console.log('cubeOperations', cubeOperations);
 
 
 export class Dodecahedron
@@ -116,39 +144,33 @@ export class Dodecahedron
 		}
 
 		createMaterials() {
-				this.controls.subscribe(({ opacity }) => {
-						this.materials = new Map<string, three.Material>();
-						this.materials.set('white', new three.MeshPhongMaterial({
-								color: 0xffffff,
-								transparent: opacity < 1,
-								opacity,
-						}));
-						this.materials.set('red', new three.MeshPhongMaterial({
-								color: 0xff0000,
-								transparent: opacity < 1,
-								opacity,
-						}));
-						this.materials.set('green', new three.MeshPhongMaterial({
-								color: 0x00ff00,
-								transparent: opacity < 1,
-								opacity,
-						}));
-						this.materials.set('blue', new three.MeshPhongMaterial({
-								color: 0x0000ff,
-								transparent: opacity < 1,
-								opacity,
-						}));
-						this.materials.set('yellow', new three.MeshPhongMaterial({
-								color: 0xffff00,
-								transparent: opacity < 1,
-								opacity,
-						}));
-						this.materials.set('magenta', new three.MeshPhongMaterial({
-								color: 0xff00ff,
-								transparent: false,
-						}));
+				this.materials = new Map<string, three.Material>();
+				this.materials.set('white', new three.MeshPhongMaterial({
+						color: 0xffffff,
+				}));
+				this.materials.set('red', new three.MeshPhongMaterial({
+						color: 0xff0000,
+				}));
+				this.materials.set('green', new three.MeshPhongMaterial({
+						color: 0x00ff00,
+				}));
+				this.materials.set('blue', new three.MeshPhongMaterial({
+						color: 0x0000ff,
+				}));
+				this.materials.set('yellow', new three.MeshPhongMaterial({
+						color: 0xffff00,
+				}));
+				this.materials.set('magenta', new three.MeshPhongMaterial({
+				}));
 
-						this.colors = Array.from(this.materials.keys());
+				this.colors = Array.from(this.materials.keys());
+		}
+		
+		updateMaterials(opacity: number) {
+				this.materials.forEach(material => {
+						material.transparent = opacity < 1;
+						material.opacity = opacity;
+						material.needsUpdate= true;
 				});
 		}
 		
@@ -213,7 +235,16 @@ export class Dodecahedron
 						new three.Vector3(-phi, -invPhi, 0),  // 19
 				);
 
-				const subscription = this.controls.subscribe(({ showSkeleton, showShell, cubeCount, evenTriangleCount, oddTriangleCount }) => {
+				this.mesh = new three.Mesh(this.geometry, this.colors.map(color => {
+						const material = this.materials.get(color);
+						material.needsUpdate = true;
+						return material
+				}) );
+
+				const subscription = this.controls.subscribe(({ opacity, showSkeleton, showShell, cubeCount, evenTriangleCount, oddTriangleCount }) => {
+						this.geometry.faces = [];
+
+						this.updateMaterials(opacity);
 						if (showSkeleton) {
 								//cube
 								this.addCubeFaces([0, 1, 2, 3, 4, 5, 6, 7], this.getMaterial('red'));
@@ -261,8 +292,8 @@ export class Dodecahedron
 
 						this.geometry.computeBoundingSphere();
 						this.geometry.computeFaceNormals();
+						this.geometry.elementsNeedUpdate = true;
 
-						this.mesh = new three.Mesh( this.geometry, this.colors.map(color => this.materials.get(color)) );
 				});
 
 				this.subscriptions.push(subscription);
@@ -288,6 +319,7 @@ export default function dodecahedron(scene: three.Scene): Observable<three.Objec
 				scene.add(dodecahedron.mesh);
 				subscriber.next(dodecahedron.mesh);
 				return function() {
+						controls.cleanup();
 						scene.remove(dodecahedron.mesh);
 						dodecahedron.cleanup();
 				}

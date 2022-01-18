@@ -6,7 +6,6 @@ import dodecahedron from './dodecahedron';
 import zonohedron from './zonohedron';
 import icosahedron from './icosahedron';
 import clock, { Clock } from './clock';
-import objectControls from './objectControls';
 
 export type State = {
 		geometryType: string;

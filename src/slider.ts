@@ -53,6 +53,7 @@ export default function slider(parent: Node,
 		return new Observable((subscriber: Subscriber<number>) => {
 				const slider = new Slider(parent, id, title, min, max, step, value);
 				const subscription = slider.observable.subscribe(subscriber);
+				subscriber.next(value);
 				return function() {
 						subscription.unsubscribe();
 						slider.cleanup();
